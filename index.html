@@ -38,9 +38,13 @@
         .notification-bell { position: relative; cursor: pointer; }
         .notification-badge { position: absolute; top: -5px; right: -8px; background-color: #ef4444; color: white; border-radius: 50%; width: 20px; height: 20px; font-size: 12px; display: flex; align-items: center; justify-content: center; }
         .notification-dropdown { display: none; position: absolute; top: 100%; right: 0; background-color: #1e293b; border: 1px solid #334155; border-radius: 0.5rem; width: 300px; max-height: 400px; overflow-y: auto; z-index: 50; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); }
+        .loading-overlay { display: none; position: fixed; inset: 0; background-color: rgba(0,0,0,0.5); z-index: 100; justify-content: center; align-items: center; }
+        .loader { border: 5px solid #f3f3f3; border-top: 5px solid #3498db; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
+    <div id="loading-overlay" class="loading-overlay"><div class="loader"></div></div>
 
     <!-- Tela de Login -->
     <div id="login-screen" class="fixed inset-0 bg-slate-900 flex items-center justify-center z-50">
@@ -187,6 +191,12 @@
                             <p class="font-semibold">Nenhum pagamento encontrado.</p>
                             <p>Tente ajustar os filtros ou adicione um novo pagamento.</p>
                         </div>
+                         <!-- Controles de Paginação -->
+                        <div id="pagination-controls" class="flex justify-center items-center gap-4 p-4 bg-slate-800 border-t border-slate-700">
+                            <button id="prev-page-btn" class="bg-slate-600 hover:bg-slate-500 text-white font-bold py-2 px-4 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed">Anterior</button>
+                            <span id="page-info" class="text-slate-400">Página 1 de 1</span>
+                            <button id="next-page-btn" class="bg-slate-600 hover:bg-slate-500 text-white font-bold py-2 px-4 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed">Próximo</button>
+                        </div>
                     </div>
                 </div>
             </main>
@@ -220,7 +230,7 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <label for="value" class="block text-sm font-medium text-slate-300 mb-2">Valor (R$)</label>
-                            <input type="number" id="value" name="value" step="0.01" placeholder="150,50" class="w-full bg-slate-700 border border-slate-600 text-white rounded-lg p-3 focus:ring-2 focus:ring-cyan-500 focus:outline-none" required>
+                            <input type="text" id="value" name="value" placeholder="18.662,58" class="w-full bg-slate-700 border border-slate-600 text-white rounded-lg p-3 focus:ring-2 focus:ring-cyan-500 focus:outline-none" required>
                         </div>
                         <div>
                             <label for="payment-method" class="block text-sm font-medium text-slate-300 mb-2">Forma de Pagamento</label>
@@ -310,6 +320,7 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             // --- ELEMENTOS DA UI ---
+            const loadingOverlay = document.getElementById('loading-overlay');
             const loginScreen = document.getElementById('login-screen');
             const appContainer = document.getElementById('app-container');
             const loginForm = document.getElementById('login-form');
@@ -342,6 +353,10 @@
             const confirmDeleteModal = document.getElementById('confirm-delete-modal');
             const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
             const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
+            const paginationControls = document.getElementById('pagination-controls');
+            const prevPageBtn = document.getElementById('prev-page-btn');
+            const nextPageBtn = document.getElementById('next-page-btn');
+            const pageInfo = document.getElementById('page-info');
             
             // Resumo
             const totalValueEl = document.getElementById('total-value');
@@ -353,12 +368,15 @@
 
             // --- ESTADO DA APLICAÇÃO ---
             let currentModule = 'DASHBOARD';
-            let allPayments = []; // Os dados virão do Supabase
+            let allPayments = []; 
             const moduleNames = ["DESPESAS ADM MENSAIS", "FOLHA DE PAGAMENTO", "IMPOSTOS", "CONTAS AVULSAS"];
             let modulesChartInstance = null;
             let statusChartInstance = null;
             let selectedYear = 'all', selectedMonth = 'all', searchTerm = '', selectedPriority = 'all', selectedPaymentMethod = 'all';
             let paymentIdToDelete = null;
+            let currentPage = 1;
+            const ITEMS_PER_PAGE = 50;
+            let totalItems = 0;
 
             // --- CONFIGURAÇÃO DO SUPABASE ---
             const SUPABASE_URL = 'https://cykvtziwulnqgyyaeugj.supabase.co';
@@ -367,6 +385,8 @@
             const { createClient } = supabase;
             const _supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+            const showLoader = () => loadingOverlay.style.display = 'flex';
+            const hideLoader = () => loadingOverlay.style.display = 'none';
 
             // --- LÓGICA DE LOGIN ---
             loginForm.addEventListener('submit', (e) => {
@@ -393,24 +413,71 @@
                 };
                 
                 // --- BUSCAR DADOS DO SUPABASE ---
-                async function fetchPayments() {
-                    const { data, error } = await _supabase
-                        .from('payments')
-                        .select('*')
-                        .order('dueDate', { ascending: true });
+                async function fetchPaginatedPayments() {
+                    showLoader();
+                    let query = _supabase.from('payments').select('*', { count: 'exact' });
+
+                    // Aplicar filtros
+                    if (currentModule !== 'DASHBOARD') query = query.eq('module', currentModule);
+                    if (searchTerm) query = query.ilike('description', `%${searchTerm}%`);
+                    if (selectedPriority !== 'all') query = query.eq('priority', selectedPriority);
+                    if (selectedPaymentMethod !== 'all') query = query.eq('paymentMethod', selectedPaymentMethod);
+                    
+                    if (selectedYear !== 'all') {
+                        const startDate = `${selectedYear}-01-01`;
+                        const endDate = `${selectedYear}-12-31`;
+                        if (selectedMonth !== 'all') {
+                            const monthStartDate = new Date(selectedYear, selectedMonth, 1).toISOString().slice(0,10);
+                            const monthEndDate = new Date(selectedYear, parseInt(selectedMonth) + 1, 0).toISOString().slice(0,10);
+                            query = query.gte('date', monthStartDate).lte('date', monthEndDate);
+                        } else {
+                            query = query.gte('date', startDate).lte('date', endDate);
+                        }
+                    }
+
+                    // Paginação
+                    const from = (currentPage - 1) * ITEMS_PER_PAGE;
+                    const to = from + ITEMS_PER_PAGE - 1;
+                    query = query.range(from, to).order('dueDate', { ascending: true });
+
+                    const { data, error, count } = await query;
+                    hideLoader();
 
                     if (error) {
                         console.error('Erro ao buscar pagamentos:', error);
-                        alert('ERRO: Não foi possível carregar os dados. Verifique o seu URL e Chave do Supabase no código.');
                         return;
                     }
+
                     allPayments = data;
-                    populateYearFilter();
-                    applyFilters();
+                    totalItems = count;
+                    updateUI();
+                }
+
+                async function fetchAllFilteredDataForDashboard() {
+                    showLoader();
+                    let query = _supabase.from('payments').select('*');
+                    if (selectedYear !== 'all') {
+                        const startDate = `${selectedYear}-01-01`;
+                        const endDate = `${selectedYear}-12-31`;
+                        if (selectedMonth !== 'all') {
+                            const monthStartDate = new Date(selectedYear, selectedMonth, 1).toISOString().slice(0,10);
+                            const monthEndDate = new Date(selectedYear, parseInt(selectedMonth) + 1, 0).toISOString().slice(0,10);
+                            query = query.gte('date', monthStartDate).lte('date', monthEndDate);
+                        } else {
+                            query = query.gte('date', startDate).lte('date', endDate);
+                        }
+                    }
+                    const { data, error } = await query;
+                    hideLoader();
+                    if (error) {
+                        console.error('Erro ao buscar dados para o dashboard:', error);
+                        return [];
+                    }
+                    return data;
                 }
 
                 // --- LÓGICA DO MODAL ---
-                const openModal = () => paymentModal.style.display = 'block';
+                const openModal = () => paymentModal.style.display = 'flex';
                 const closeModal = () => {
                     paymentModal.style.display = 'none';
                     paymentForm.reset();
@@ -419,83 +486,74 @@
                     paymentIdInput.value = '';
                     modalTitle.textContent = 'Adicionar Novo Pagamento';
                 };
-                isRecurringCheckbox.addEventListener('change', () => {
-                    recurringOptions.classList.toggle('hidden', !isRecurringCheckbox.checked);
-                });
-                isPermanentCheckbox.addEventListener('change', () => {
-                    recurrenceCountInput.disabled = isPermanentCheckbox.checked;
-                });
+                isRecurringCheckbox.addEventListener('change', () => recurringOptions.classList.toggle('hidden', !isRecurringCheckbox.checked));
+                isPermanentCheckbox.addEventListener('change', () => recurrenceCountInput.disabled = isPermanentCheckbox.checked);
                 
                 // --- LÓGICA DE FILTROS ---
-                const populateYearFilter = () => {
-                    const years = [...new Set(allPayments.map(p => p.date.substring(0, 4)))];
+                const populateYearFilter = async () => {
+                    showLoader();
+                    const { data, error } = await _supabase.from('payments').select('date');
+                    hideLoader();
+                    
+                    if (error) {
+                        console.error('Erro ao buscar datas para o filtro de ano:', error);
+                        const currentYear = new Date().getFullYear().toString();
+                        yearFilter.innerHTML = '<option value="all">Todos</option>';
+                        yearFilter.add(new Option(currentYear, currentYear));
+                        return;
+                    }
+                    
+                    const years = [...new Set(data.map(p => p.date.substring(0, 4)))];
                     const currentYear = new Date().getFullYear().toString();
-                    if (!years.includes(currentYear)) years.push(currentYear);
+                    if (!years.includes(currentYear)) {
+                        years.push(currentYear);
+                    }
                     years.sort().reverse();
                     yearFilter.innerHTML = '<option value="all">Todos</option>';
                     years.forEach(year => yearFilter.add(new Option(year, year)));
                 };
 
-                const getFilteredData = () => {
-                    let data = allPayments;
-                    // Filtro de Data
-                    if (selectedYear !== 'all') {
-                        data = data.filter(p => p.date.startsWith(selectedYear));
-                        if (selectedMonth !== 'all') {
-                            data = data.filter(p => new Date(p.date + 'T00:00:00').getMonth() == selectedMonth);
-                        }
-                    }
-                    // Filtros Avançados (só se aplicam na visão de módulo)
-                    if (currentModule !== 'DASHBOARD') {
-                        if (searchTerm) data = data.filter(p => p.description.toLowerCase().includes(searchTerm.toLowerCase()));
-                        if (selectedPriority !== 'all') data = data.filter(p => p.priority === selectedPriority);
-                        if (selectedPaymentMethod !== 'all') data = data.filter(p => p.paymentMethod === selectedPaymentMethod);
-                    }
-                    return data;
-                };
-
                 const applyFilters = () => {
+                    currentPage = 1; // Reset page on new filter
                     selectedYear = yearFilter.value;
                     selectedMonth = monthFilter.value;
                     searchTerm = searchInput.value;
                     selectedPriority = priorityFilter.value;
                     selectedPaymentMethod = paymentMethodFilter.value;
-
                     monthFilter.disabled = selectedYear === 'all';
-                    updateUI();
+                    
+                    if(currentModule === 'DASHBOARD') {
+                        updateUI(); // Dashboard fetches all data
+                    } else {
+                        fetchPaginatedPayments(); // Modules fetch paginated data
+                    }
                 };
 
                 // --- LÓGICA DE NOTIFICAÇÕES ---
-                const updateNotifications = () => {
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
-                    const sevenDaysFromNow = new Date(today);
-                    sevenDaysFromNow.setDate(today.getDate() + 7);
+                const updateNotifications = async () => {
+                    const today = new Date().toISOString().slice(0, 10);
+                    const sevenDaysFromNow = new Date();
+                    sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
+                    const sevenDaysISO = sevenDaysFromNow.toISOString().slice(0, 10);
 
-                    const overdue = allPayments.filter(p => p.status === 'Pendente' && new Date(p.dueDate + 'T00:00:00') < today);
-                    const upcoming = allPayments.filter(p => {
-                        const dueDate = new Date(p.dueDate + 'T00:00:00');
-                        return p.status === 'Pendente' && dueDate >= today && dueDate <= sevenDaysFromNow;
-                    });
+                    const { data: overdue, error: overdueError } = await _supabase.from('payments').select('description, dueDate').eq('status', 'Pendente').lt('dueDate', today);
+                    const { data: upcoming, error: upcomingError } = await _supabase.from('payments').select('description, dueDate').eq('status', 'Pendente').gte('dueDate', today).lte('dueDate', sevenDaysISO);
                     
+                    if(overdueError || upcomingError) { console.error('Erro ao buscar notificações'); return; }
+
                     const totalNotifications = overdue.length + upcoming.length;
                     notificationDropdown.innerHTML = '';
 
                     if (totalNotifications > 0) {
                         notificationBadge.textContent = totalNotifications;
                         notificationBadge.classList.remove('hidden');
-
                         if (overdue.length > 0) {
                             notificationDropdown.innerHTML += `<div class="p-2 font-bold text-red-400 border-b border-slate-600">Vencidas (${overdue.length})</div>`;
-                            overdue.forEach(p => {
-                                notificationDropdown.innerHTML += `<div class="p-2 border-b border-slate-700"><strong>${p.description}</strong><br><span class="text-xs text-slate-400">Venceu em: ${formatDate(p.dueDate)}</span></div>`;
-                            });
+                            overdue.forEach(p => notificationDropdown.innerHTML += `<div class="p-2 border-b border-slate-700"><strong>${p.description}</strong><br><span class="text-xs text-slate-400">Venceu em: ${formatDate(p.dueDate)}</span></div>`);
                         }
                         if (upcoming.length > 0) {
-                             notificationDropdown.innerHTML += `<div class="p-2 font-bold text-amber-400 border-b border-slate-600">A Vencer (${upcoming.length})</div>`;
-                            upcoming.forEach(p => {
-                                notificationDropdown.innerHTML += `<div class="p-2 border-b border-slate-700"><strong>${p.description}</strong><br><span class="text-xs text-slate-400">Vence em: ${formatDate(p.dueDate)}</span></div>`;
-                            });
+                            notificationDropdown.innerHTML += `<div class="p-2 font-bold text-amber-400 border-b border-slate-600">A Vencer (${upcoming.length})</div>`;
+                            upcoming.forEach(p => notificationDropdown.innerHTML += `<div class="p-2 border-b border-slate-700"><strong>${p.description}</strong><br><span class="text-xs text-slate-400">Vence em: ${formatDate(p.dueDate)}</span></div>`);
                         }
                     } else {
                         notificationBadge.classList.add('hidden');
@@ -509,34 +567,56 @@
                 window.addEventListener('click', () => notificationDropdown.style.display = 'none');
 
                 // --- LÓGICA DE RENDERIZAÇÃO ---
-                const updateUI = () => {
-                    const dateFilteredPayments = getFilteredData();
+                const updateUI = async () => {
                     updateActiveTab();
-
                     if (currentModule === 'DASHBOARD') {
+                        paginationControls.style.display = 'none';
                         chartsSection.style.display = 'grid';
                         moduleContent.style.display = 'none';
-                        updateDashboard(dateFilteredPayments);
+                        const dashboardData = await fetchAllFilteredDataForDashboard();
+                        updateDashboard(dashboardData);
                     } else {
+                        paginationControls.style.display = 'flex';
                         chartsSection.style.display = 'none';
                         moduleContent.style.display = 'block';
-                        const moduleAndDateFilteredPayments = dateFilteredPayments.filter(p => p.module === currentModule);
-                        renderTable(moduleAndDateFilteredPayments);
-                        updateModuleSummary(moduleAndDateFilteredPayments);
+                        renderTable(allPayments);
+                        updateModuleSummary(allPayments);
+                        updatePaginationControls();
                     }
                     updateNotifications();
                 };
+
+                // --- PAGINAÇÃO ---
+                const updatePaginationControls = () => {
+                    const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+                    pageInfo.textContent = `Página ${currentPage} de ${totalPages || 1}`;
+                    prevPageBtn.disabled = currentPage === 1;
+                    nextPageBtn.disabled = currentPage === totalPages || totalPages === 0;
+                };
+
+                prevPageBtn.addEventListener('click', () => {
+                    if (currentPage > 1) {
+                        currentPage--;
+                        fetchPaginatedPayments();
+                    }
+                });
+
+                nextPageBtn.addEventListener('click', () => {
+                    const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+                    if (currentPage < totalPages) {
+                        currentPage++;
+                        fetchPaginatedPayments();
+                    }
+                });
 
                 // --- DASHBOARD ---
                 const updateDashboard = (payments) => {
                     const totalValue = payments.reduce((sum, p) => sum + p.value, 0);
                     const totalPendingValue = payments.filter(p => p.status === 'Pendente').reduce((sum, p) => sum + p.value, 0);
                     const totalPaidValue = payments.filter(p => p.status === 'Pago').reduce((sum, p) => sum + p.value, 0);
-                    
                     totalValueEl.textContent = formatCurrency(totalValue);
                     pendingCountEl.textContent = formatCurrency(totalPendingValue);
                     paidCountEl.textContent = formatCurrency(totalPaidValue);
-                    
                     renderModulesChart(payments);
                     renderStatusChart(payments);
                 };
@@ -583,6 +663,7 @@
 
                 // --- MÓDULOS INDIVIDUAIS ---
                 const updateModuleSummary = (payments) => {
+                    // This function is less relevant with pagination, but can show summary for the current page
                     const totalValue = payments.reduce((sum, p) => sum + p.value, 0);
                     const pendingCount = payments.filter(p => p.status === 'Pendente').length;
                     const paidCount = payments.length - pendingCount;
@@ -594,18 +675,14 @@
                 const renderTable = (payments) => {
                     tableBody.innerHTML = '';
                     emptyState.style.display = payments.length === 0 ? 'block' : 'none';
-                    
                     const today = new Date();
                     today.setHours(0, 0, 0, 0);
-
-                    payments.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
-
                     payments.forEach(p => {
                         const isOverdue = p.status === 'Pendente' && new Date(p.dueDate + 'T00:00:00') < today;
                         const row = document.createElement('tr');
                         row.className = 'hover:bg-slate-700/50 transition-colors';
                         row.innerHTML = `
-                            <td class="p-4 font-medium text-white">${p.description} ${p.attachment ? `<i class="fas fa-paperclip text-slate-500 ml-2" title="${p.attachment}"></i>` : ''}</td>
+                            <td class="p-4 font-medium text-white">${p.description} ${p.attachment ? `<a href="${p.attachment}" target="_blank" class="text-cyan-400 hover:text-cyan-300" title="Ver Anexo"><i class="fas fa-paperclip ml-2"></i></a>` : ''}</td>
                             <td class="p-4 font-medium text-white whitespace-nowrap">${formatCurrency(p.value)}</td>
                             <td class="p-4 whitespace-nowrap ${isOverdue ? 'text-overdue' : ''}">${formatDate(p.dueDate)}</td>
                             <td class="p-4 text-center"><span class="priority-badge priority-${p.priority.toLowerCase()}">${p.priority}</span></td>
@@ -626,7 +703,8 @@
                 };
 
                 // --- LÓGICA DE EXPORTAÇÃO PDF ---
-                const exportToPDF = () => {
+                const exportToPDF = async () => {
+                    showLoader();
                     const { jsPDF } = window.jspdf;
                     const doc = new jsPDF();
                     const todayDate = new Date().toISOString().slice(0, 10);
@@ -640,6 +718,11 @@
                     
                     if (currentModule === 'DASHBOARD') {
                         doc.text(`Relatório do Dashboard - Período: ${period}`, 14, 30);
+                        const dashboardData = await fetchAllFilteredDataForDashboard();
+                        const totalValue = dashboardData.reduce((sum, p) => sum + p.value, 0);
+                        const totalPendingValue = dashboardData.filter(p => p.status === 'Pendente').reduce((sum, p) => sum + p.value, 0);
+                        const totalPaidValue = dashboardData.filter(p => p.status === 'Pago').reduce((sum, p) => sum + p.value, 0);
+                        
                         const modulesChartImg = document.getElementById('modules-chart').toDataURL('image/png');
                         const statusChartImg = document.getElementById('status-chart').toDataURL('image/png');
                         doc.setFontSize(14);
@@ -647,15 +730,15 @@
                         doc.text('Resumo do Período', 14, 45);
                         doc.setFont('helvetica', 'normal');
                         doc.setFontSize(11);
-                        doc.text(`${totalValueTitle.textContent}: ${totalValueEl.textContent}`, 14, 52);
-                        doc.text(`${pendingCountTitle.textContent}: ${pendingCountEl.textContent}`, 14, 59);
-                        doc.text(`${paidCountTitle.textContent}: ${paidCountEl.textContent}`, 14, 66);
+                        doc.text(`Valor Total: ${formatCurrency(totalValue)}`, 14, 52);
+                        doc.text(`Total Pendente: ${formatCurrency(totalPendingValue)}`, 14, 59);
+                        doc.text(`Total Efetuado: ${formatCurrency(totalPaidValue)}`, 14, 66);
                         doc.addImage(modulesChartImg, 'PNG', 14, 80, 180, 90);
                         doc.addPage();
                         doc.addImage(statusChartImg, 'PNG', 14, 20, 180, 90);
                         doc.save(`Relatorio_Dashboard_PONTAZO_BANK_${todayDate}.pdf`);
                     } else {
-                        const data = getFilteredData().filter(p => p.module === currentModule);
+                        const { data } = await _supabase.from('payments').select('*').eq('module', currentModule); // Fetch all for PDF
                         const total = data.reduce((sum, p) => sum + p.value, 0);
                         doc.text(`Relatório de ${currentModule}`, 14, 30);
                         doc.text(`Período: ${period}`, 14, 37);
@@ -669,25 +752,34 @@
                         });
                         doc.save(`Relatorio_${currentModule.replace(/\s/g, '_')}_PONTAZO_BANK_${todayDate}.pdf`);
                     }
+                    hideLoader();
                 };
 
                 // --- EVENT LISTENERS ---
                 paymentForm.addEventListener('submit', async (e) => {
                     e.preventDefault();
+                    showLoader();
                     const formData = new FormData(paymentForm);
                     const id = formData.get('payment-id');
                     const isRecurring = formData.get('is-recurring') === 'on';
                     const isPermanent = formData.get('is-permanent') === 'on';
                     const attachmentFile = document.getElementById('attachment').files[0];
+                    let attachmentUrl = id ? allPayments.find(p => p.id == id).attachment : null;
+
+                    if (attachmentFile) {
+                        const filePath = `public/${Date.now()}-${attachmentFile.name}`;
+                        const { error: uploadError } = await _supabase.storage.from('comprovativos').upload(filePath, attachmentFile);
+                        if (uploadError) { console.error('Erro no upload do anexo:', uploadError); alert('Falha ao enviar o anexo.'); hideLoader(); return; }
+                        const { data: urlData } = _supabase.storage.from('comprovativos').getPublicUrl(filePath);
+                        attachmentUrl = urlData.publicUrl;
+                    }
+
+                    const rawValue = formData.get('value').toString();
+                    const sanitizedValue = rawValue.replace(/\./g, '').replace(',', '.');
 
                     const basePaymentData = {
-                        description: formData.get('description'),
-                        value: parseFloat(formData.get('value')),
-                        paymentMethod: formData.get('payment-method'),
-                        module: formData.get('module'),
-                        priority: formData.get('priority'),
-                        status: formData.get('status'),
-                        attachment: attachmentFile ? attachmentFile.name : (id ? allPayments.find(p => p.id == id).attachment : null)
+                        description: formData.get('description'), value: parseFloat(sanitizedValue), paymentMethod: formData.get('payment-method'),
+                        module: formData.get('module'), priority: formData.get('priority'), status: formData.get('status'), attachment: attachmentUrl
                     };
 
                     if (id && !isRecurring) {
@@ -697,14 +789,11 @@
                         const recurrenceCount = isPermanent ? 120 : parseInt(formData.get('recurrence-count'), 10);
                         let currentLaunchDate = new Date(formData.get('date') + 'T00:00:00');
                         let currentDueDate = new Date(formData.get('dueDate') + 'T00:00:00');
-                        
                         const paymentsToInsert = [];
                         for (let i = 0; i < recurrenceCount; i++) {
                             paymentsToInsert.push({
-                                ...basePaymentData,
-                                description: `${basePaymentData.description} (${i + 1}/${recurrenceCount})`,
-                                date: currentLaunchDate.toISOString().slice(0, 10),
-                                dueDate: currentDueDate.toISOString().slice(0, 10),
+                                ...basePaymentData, description: `${basePaymentData.description} (${i + 1}/${recurrenceCount})`,
+                                date: currentLaunchDate.toISOString().slice(0, 10), dueDate: currentDueDate.toISOString().slice(0, 10),
                             });
                             currentLaunchDate.setMonth(currentLaunchDate.getMonth() + 1);
                             currentDueDate.setMonth(currentDueDate.getMonth() + 1);
@@ -717,7 +806,7 @@
                     }
                     
                     closeModal();
-                    fetchPayments();
+                    fetchPaginatedPayments();
                 });
                 
                 moduleTabsContainer.addEventListener('click', (e) => {
@@ -738,7 +827,7 @@
                                 document.getElementById('date').value = payment.date;
                                 document.getElementById('dueDate').value = payment.dueDate;
                                 document.getElementById('description').value = payment.description;
-                                document.getElementById('value').value = payment.value;
+                                document.getElementById('value').value = parseFloat(payment.value).toFixed(2).replace('.', ',');
                                 document.getElementById('payment-method').value = payment.paymentMethod;
                                 document.getElementById('module').value = payment.module;
                                 document.getElementById('priority').value = payment.priority;
@@ -760,9 +849,10 @@
                     document.querySelectorAll('.toggle-status-btn').forEach(async (btn) => {
                         btn.addEventListener('click', async (e) => {
                             const id = parseInt(e.currentTarget.dataset.id);
+                            showLoader();
                             const { error } = await _supabase.from('payments').update({ status: 'Pago' }).eq('id', id);
                             if (error) console.error("Erro ao marcar como pago:", error);
-                            else fetchPayments();
+                            fetchPaginatedPayments();
                         });
                     });
                 };
@@ -789,12 +879,13 @@
 
                 confirmDeleteBtn.addEventListener('click', async () => {
                     if (paymentIdToDelete !== null) {
+                        showLoader();
                         const { error } = await _supabase.from('payments').delete().eq('id', paymentIdToDelete);
                         if (error) console.error("Erro ao excluir:", error);
-                        else fetchPayments();
                         
                         confirmDeleteModal.style.display = 'none';
                         paymentIdToDelete = null;
+                        fetchPaginatedPayments();
                     }
                 });
 
@@ -805,7 +896,8 @@
                 exportPdfBtn.addEventListener('click', exportToPDF);
 
                 // --- INICIALIZAÇÃO ---
-                fetchPayments();
+                populateYearFilter();
+                applyFilters();
             }
         });
     </script>
