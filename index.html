@@ -28,7 +28,7 @@
         .priority-alta { background-color: rgba(239, 68, 68, 0.2); color: #f87171; }
         .priority-media { background-color: rgba(245, 158, 11, 0.2); color: #fbbf24; }
         .priority-baixa { background-color: rgba(59, 130, 246, 0.2); color: #60a5fa; }
-        .tag-badge { background-color: #334155; color: #cbd5e1; margin: 2px; display: inline-block; }
+        .tag-badge { margin: 2px; display: inline-block; }
         .text-overdue { color: #ef4444; font-weight: 700; }
         .table-responsive { display: block; width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
         .tab-btn { padding: 0.75rem 1.5rem; border-bottom: 3px solid transparent; transition: all 0.3s ease; font-weight: 600; color: #94a3b8; }
@@ -148,12 +148,12 @@
                         <div class="relative flex-grow"><canvas id="modules-chart"></canvas></div>
                     </div>
                     <div class="chart-container flex flex-col">
-                        <h3 class="text-xl font-bold text-white mb-4 flex-shrink-0">Custos por Tag</h3>
-                        <div class="relative flex-grow"><canvas id="tags-chart"></canvas></div>
-                    </div>
-                    <div class="lg:col-span-2 chart-container flex flex-col">
                         <h3 class="text-xl font-bold text-white mb-4 flex-shrink-0">Status de Pagamentos</h3>
                         <div class="relative flex-grow"><canvas id="status-chart"></canvas></div>
+                    </div>
+                    <div class="lg:col-span-2 chart-container flex flex-col">
+                        <h3 class="text-xl font-bold text-white mb-4 flex-shrink-0">Custos por Tag (Top 10)</h3>
+                        <div class="relative flex-grow"><canvas id="tags-chart"></canvas></div>
                     </div>
                 </div>
 
@@ -187,7 +187,7 @@
                                 <thead class="bg-slate-700/50">
                                     <tr>
                                         <th class="p-4 text-sm font-semibold text-slate-300 uppercase tracking-wider">Descrição</th>
-                                        <th class="p-4 text-sm font-semibold text-slate-300 uppercase tracking-wider">Tags</th>
+                                        <th class="p-4 text-sm font-semibold text-slate-300 uppercase tracking-wider">Tag</th>
                                         <th class="p-4 text-sm font-semibold text-slate-300 uppercase tracking-wider">Valor</th>
                                         <th class="p-4 text-sm font-semibold text-slate-300 uppercase tracking-wider">Vencimento</th>
                                         <th class="p-4 text-sm font-semibold text-slate-300 uppercase tracking-wider text-center">Prioridade</th>
@@ -269,10 +269,11 @@
 
                      <!-- Campo de Tags -->
                     <div>
-                        <label class="block text-sm font-medium text-slate-300 mb-2">Tags</label>
-                        <div id="tags-checkbox-container" class="grid grid-cols-2 md:grid-cols-4 gap-2 p-3 bg-slate-700/50 rounded-lg max-h-32 overflow-y-auto">
-                            <!-- Checkboxes de tags serão inseridos aqui -->
-                        </div>
+                        <label for="tags-select" class="block text-sm font-medium text-slate-300 mb-2">Tag</label>
+                        <select id="tags-select" name="tag" class="w-full bg-slate-700 border border-slate-600 text-white rounded-lg p-3 focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                            <option value="">Nenhuma</option>
+                            <!-- Opções de tags serão inseridas aqui -->
+                        </select>
                     </div>
 
                     <!-- Seção de Recorrência -->
@@ -399,7 +400,7 @@
             const prevPageBtn = document.getElementById('prev-page-btn');
             const nextPageBtn = document.getElementById('next-page-btn');
             const pageInfo = document.getElementById('page-info');
-            const tagsCheckboxContainer = document.getElementById('tags-checkbox-container');
+            const tagsSelect = document.getElementById('tags-select');
             const manageTagsBtn = document.getElementById('manage-tags-btn');
             const manageTagsModal = document.getElementById('manage-tags-modal');
             const closeTagsModalBtn = document.getElementById('close-tags-modal-btn');
@@ -468,6 +469,16 @@
                     if (typeof valueString !== 'string') return NaN;
                     return parseFloat(valueString.replace(/\./g, '').replace(',', '.'));
                 }
+                const stringToColor = (str) => {
+                    let hash = 0;
+                    if (!str) return '#64748b'; // Cor padrão para tags nulas/indefinidas
+                    for (let i = 0; i < str.length; i++) {
+                        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+                    }
+                    // Garante cores mais claras e com mais saturação
+                    const h = hash % 360;
+                    return `hsla(${h}, 70%, 70%, 1)`;
+                }
                 
                 // --- BUSCAR DADOS DO SUPABASE ---
                 async function fetchPaginatedPayments() {
@@ -479,7 +490,7 @@
                     if (searchTerm) query = query.ilike('description', `%${searchTerm}%`);
                     if (selectedPriority !== 'all') query = query.eq('priority', selectedPriority);
                     if (selectedPaymentMethod !== 'all') query = query.eq('paymentMethod', selectedPaymentMethod);
-                    if (selectedTag !== 'all') query = query.contains('tags', [selectedTag]);
+                    if (selectedTag !== 'all') query = query.eq('tag', selectedTag);
                     
                     if (selectedYear !== 'all') {
                         const startDate = `${selectedYear}-01-01`;
@@ -725,15 +736,13 @@
                     const ctx = document.getElementById('tags-chart').getContext('2d');
                     const tagsData = {};
                     payments.forEach(p => {
-                        if (Array.isArray(p.tags)) {
-                            p.tags.forEach(tag => {
-                                if (!tagsData[tag]) tagsData[tag] = 0;
-                                tagsData[tag] += p.value;
-                            });
+                        if (p.tag) {
+                            if (!tagsData[p.tag]) tagsData[p.tag] = 0;
+                            tagsData[p.tag] += p.value;
                         }
                     });
                     
-                    const sortedTags = Object.entries(tagsData).sort(([,a],[,b]) => b-a);
+                    const sortedTags = Object.entries(tagsData).sort(([,a],[,b]) => b-a).slice(0, 10);
                     const labels = sortedTags.map(item => item[0]);
                     const dataValues = sortedTags.map(item => item[1]);
 
@@ -742,17 +751,16 @@
                         datasets: [{
                             label: 'Custo por Tag',
                             data: dataValues,
-                            backgroundColor: ['#8b5cf6', '#a855f7', '#d946ef', '#ec4899', '#f43f5e'],
-                            borderColor: '#1e293b', borderWidth: 2, borderRadius: 5,
+                            backgroundColor: labels.map(label => stringToColor(label)),
+                            borderColor: '#1e293b', borderWidth: 4
                         }]
                     };
                     if (tagsChartInstance) tagsChartInstance.destroy();
                     tagsChartInstance = new Chart(ctx, {
-                        type: 'bar', data: data,
+                        type: 'doughnut', data: data,
                         options: {
-                            responsive: true, maintainAspectRatio: false,
-                            plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => formatCurrency(c.parsed.y) } } },
-                            scales: { x: { ticks: { color: '#94a3b8' }, grid: { display: false } }, y: { beginAtZero: true, ticks: { color: '#94a3b8' }, grid: { color: '#334155' } } }
+                            responsive: true, maintainAspectRatio: false, cutout: '70%',
+                            plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8' } }, tooltip: { callbacks: { label: (c) => `${c.label}: ${formatCurrency(c.parsed)}` } } }
                         }
                     });
                 };
@@ -776,10 +784,10 @@
                         const isOverdue = p.status === 'Pendente' && new Date(p.dueDate + 'T00:00:00') < today;
                         const row = document.createElement('tr');
                         row.className = 'hover:bg-slate-700/50 transition-colors';
-                        const tagsHtml = Array.isArray(p.tags) ? p.tags.map(tag => `<span class="tag-badge">${tag}</span>`).join('') : '';
+                        const tagHtml = p.tag ? `<span class="tag-badge" style="background-color: ${stringToColor(p.tag)}20; color: ${stringToColor(p.tag)};">${p.tag}</span>` : '';
                         row.innerHTML = `
                             <td class="p-4 font-medium text-white">${p.description} ${p.attachment ? `<a href="${p.attachment}" target="_blank" class="text-cyan-400 hover:text-cyan-300" title="Ver Anexo"><i class="fas fa-paperclip ml-2"></i></a>` : ''}</td>
-                            <td class="p-4">${tagsHtml}</td>
+                            <td class="p-4">${tagHtml}</td>
                             <td class="p-4 font-medium text-white whitespace-nowrap">${formatCurrency(p.value)}</td>
                             <td class="p-4 whitespace-nowrap ${isOverdue ? 'text-overdue' : ''}">${formatDate(p.dueDate)}</td>
                             <td class="p-4 text-center"><span class="priority-badge priority-${p.priority.toLowerCase()}">${p.priority}</span></td>
@@ -868,22 +876,9 @@
                 };
                 
                 const populateTagsInPaymentModal = () => {
-                    tagsCheckboxContainer.innerHTML = '';
+                    tagsSelect.innerHTML = '<option value="">Nenhuma</option>';
                     allTags.forEach(tag => {
-                        const div = document.createElement('div');
-                        div.className = 'flex items-center';
-                        const checkbox = document.createElement('input');
-                        checkbox.type = 'checkbox';
-                        checkbox.id = `tag-${tag.id}`;
-                        checkbox.value = tag.name;
-                        checkbox.className = 'h-4 w-4 rounded border-gray-300 text-cyan-600 focus:ring-cyan-500';
-                        const label = document.createElement('label');
-                        label.htmlFor = `tag-${tag.id}`;
-                        label.textContent = tag.name;
-                        label.className = 'ml-2 block text-sm font-medium text-slate-200';
-                        div.appendChild(checkbox);
-                        div.appendChild(label);
-                        tagsCheckboxContainer.appendChild(div);
+                        tagsSelect.add(new Option(tag.name, tag.name));
                     });
                 };
 
@@ -927,12 +922,11 @@
 
                     const rawValue = formData.get('value').toString();
                     const sanitizedValue = parseCurrency(rawValue);
-                    const selectedTags = Array.from(tagsCheckboxContainer.querySelectorAll('input:checked')).map(cb => cb.value);
 
                     const basePaymentData = {
                         description: formData.get('description'), value: sanitizedValue, paymentMethod: formData.get('payment-method'),
                         module: formData.get('module'), priority: formData.get('priority'), status: formData.get('status'), attachment: attachmentUrl,
-                        tags: selectedTags
+                        tag: formData.get('tag') || null
                     };
 
                     if (id && !isRecurring) {
@@ -985,14 +979,9 @@
                                 document.getElementById('module').value = payment.module;
                                 document.getElementById('priority').value = payment.priority;
                                 document.getElementById('status').value = payment.status;
+                                document.getElementById('tags-select').value = payment.tag || '';
                                 document.getElementById('is-recurring').checked = false;
                                 recurringOptions.classList.add('hidden');
-                                
-                                const paymentTags = Array.isArray(payment.tags) ? payment.tags : [];
-                                tagsCheckboxContainer.querySelectorAll('input').forEach(cb => {
-                                    cb.checked = paymentTags.includes(cb.value);
-                                });
-
                                 openModal();
                             }
                         });
@@ -1025,7 +1014,6 @@
                     const today = new Date().toISOString().split('T')[0];
                     document.getElementById('date').value = today;
                     document.getElementById('dueDate').value = today;
-                    tagsCheckboxContainer.querySelectorAll('input').forEach(cb => cb.checked = false);
                     openModal();
                 });
                 
