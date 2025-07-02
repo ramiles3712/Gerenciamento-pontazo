@@ -42,6 +42,10 @@
         .loading-overlay { display: none; position: fixed; inset: 0; background-color: rgba(15, 23, 42, 0.8); z-index: 100; justify-content: center; align-items: center; backdrop-filter: blur(4px); }
         .loader { border: 5px solid #334155; border-top: 5px solid #22d3ee; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        /* Authorization Statuses */
+        .status-autorizado { background-color: rgba(34, 197, 94, 0.1); color: #22c55e; }
+        .status-nao-autorizado { background-color: rgba(239, 68, 68, 0.1); color: #ef4444; }
+        .status-autorizacao-pendente { background-color: rgba(245, 158, 11, 0.1); color: #f59e0b; }
     </style>
 </head>
 <body>
@@ -203,6 +207,7 @@
                                         <th class="p-4 text-sm font-semibold text-slate-300 uppercase tracking-wider">Vencimento</th>
                                         <th class="p-4 text-sm font-semibold text-slate-300 uppercase tracking-wider text-center">Prioridade</th>
                                         <th class="p-4 text-sm font-semibold text-slate-300 uppercase tracking-wider text-center">Status</th>
+                                        <th class="p-4 text-sm font-semibold text-slate-300 uppercase tracking-wider text-center">Autorização</th>
                                         <th class="p-4 text-sm font-semibold text-slate-300 uppercase tracking-wider text-center">Ações</th>
                                     </tr>
                                 </thead>
@@ -427,15 +432,15 @@
         </div>
     </div>
 
-    <!-- Modal de Confirmação de Exclusão -->
-    <div id="confirm-delete-modal" class="modal-backdrop">
+    <!-- Modal de Confirmação de Ação -->
+    <div id="confirm-modal" class="modal-backdrop">
         <div class="fixed inset-0 flex items-center justify-center z-50 p-4">
             <div class="modal-content bg-slate-800 w-full max-w-md mx-auto rounded-2xl shadow-2xl border border-slate-700 p-8 text-center">
-                <h3 class="text-xl font-bold text-white mb-4">Confirmar Exclusão</h3>
-                <p id="delete-confirm-text" class="text-slate-300 mb-8"></p>
+                <h3 id="confirm-title" class="text-xl font-bold text-white mb-4">Confirmar Ação</h3>
+                <p id="confirm-text" class="text-slate-300 mb-8"></p>
                 <div class="flex justify-center gap-4">
-                    <button id="cancel-delete-btn" class="bg-slate-600 hover:bg-slate-500 text-white font-bold py-2 px-6 rounded-lg transition">Cancelar</button>
-                    <button id="confirm-delete-btn" class="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-6 rounded-lg transition">Excluir</button>
+                    <button id="cancel-confirm-btn" class="bg-slate-600 hover:bg-slate-500 text-white font-bold py-2 px-6 rounded-lg transition">Cancelar</button>
+                    <button id="confirm-btn" class="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-6 rounded-lg transition">Confirmar</button>
                 </div>
             </div>
         </div>
@@ -475,9 +480,11 @@
             const notificationBell = document.getElementById('notification-bell');
             const notificationBadge = document.getElementById('notification-badge');
             const notificationDropdown = document.getElementById('notification-dropdown');
-            const confirmDeleteModal = document.getElementById('confirm-delete-modal');
-            const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
-            const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
+            const confirmModal = document.getElementById('confirm-modal');
+            const confirmTitle = document.getElementById('confirm-title');
+            const confirmText = document.getElementById('confirm-text');
+            const confirmBtn = document.getElementById('confirm-btn');
+            const cancelConfirmBtn = document.getElementById('cancel-confirm-btn');
             const paginationControls = document.getElementById('pagination-controls');
             const prevPageBtn = document.getElementById('prev-page-btn');
             const nextPageBtn = document.getElementById('next-page-btn');
@@ -489,7 +496,6 @@
             const addTagForm = document.getElementById('add-tag-form');
             const newTagNameInput = document.getElementById('new-tag-name');
             const tagsListContainer = document.getElementById('tags-list');
-            const deleteConfirmText = document.getElementById('delete-confirm-text');
             const paymentsView = document.getElementById('payments-view');
             const loansView = document.getElementById('loans-view');
             const loanModal = document.getElementById('loan-modal');
@@ -514,7 +520,7 @@
             let statusChartInstance = null;
             let tagsChartInstance = null;
             let selectedYear = 'all', selectedMonth = 'all', searchTerm = '', selectedPriority = 'all', selectedPaymentMethod = 'all', selectedTag = 'all';
-            let itemToDelete = { id: null, type: null };
+            let actionToConfirm = null;
 
             let currentPage = 1;
             const ITEMS_PER_PAGE = 50;
@@ -933,6 +939,31 @@
                         const row = document.createElement('tr');
                         row.className = 'hover:bg-slate-700/50 transition-colors';
                         const tagHtml = p.tag ? `<span class="tag-badge" style="background-color: ${stringToColor(p.tag)}20; color: ${stringToColor(p.tag)};">${p.tag}</span>` : '';
+
+                        const authorizationStatus = p.authorization_status || 'Pendente';
+                        let authorizationBadgeClass = 'status-autorizacao-pendente';
+                        if (authorizationStatus === 'Autorizado') {
+                            authorizationBadgeClass = 'status-autorizado';
+                        } else if (authorizationStatus === 'Não Autorizado') {
+                            authorizationBadgeClass = 'status-nao-autorizado';
+                        }
+
+                        let actionButtons = `
+                            <button data-id="${p.id}" class="edit-btn text-cyan-400 hover:text-cyan-300 mx-2" title="Editar"><i class="fas fa-pencil-alt"></i></button>
+                            <button data-id="${p.id}" class="delete-btn text-red-500 hover:text-red-400 mx-2" title="Excluir"><i class="fas fa-trash-alt"></i></button>
+                        `;
+
+                        if (authorizationStatus === 'Pendente') {
+                            actionButtons += `
+                                <button data-id="${p.id}" class="authorize-btn text-green-500 hover:text-green-400 mx-2" title="Autorizar"><i class="fas fa-thumbs-up"></i></button>
+                                <button data-id="${p.id}" class="deny-btn text-red-500 hover:text-red-400 mx-2" title="Não Autorizar"><i class="fas fa-thumbs-down"></i></button>
+                            `;
+                        }
+
+                        if (authorizationStatus === 'Autorizado' && p.status === 'Pendente') {
+                            actionButtons += `<button data-id="${p.id}" class="toggle-status-btn text-green-500 hover:text-green-400 mx-2" title="Marcar como Pago"><i class="fas fa-check-circle"></i></button>`;
+                        }
+
                         row.innerHTML = `
                             <td class="p-4 font-medium text-white">${p.description} ${p.attachment ? `<a href="${p.attachment}" target="_blank" class="text-cyan-400 hover:text-cyan-300" title="Ver Anexo"><i class="fas fa-paperclip ml-2"></i></a>` : ''}</td>
                             <td class="p-4">${tagHtml}</td>
@@ -940,11 +971,8 @@
                             <td class="p-4 whitespace-nowrap ${isOverdue ? 'text-overdue' : ''}">${formatDate(p.dueDate)}</td>
                             <td class="p-4 text-center"><span class="priority-badge priority-${p.priority.toLowerCase()}">${p.priority}</span></td>
                             <td class="p-4 text-center"><span class="status-badge ${p.status === 'Pago' ? 'status-pago' : 'status-pendente'}">${p.status}</span></td>
-                            <td class="p-4 text-center whitespace-nowrap">
-                                <button data-id="${p.id}" class="edit-btn text-cyan-400 hover:text-cyan-300 mx-2" title="Editar"><i class="fas fa-pencil-alt"></i></button>
-                                <button data-id="${p.id}" class="delete-btn text-red-500 hover:text-red-400 mx-2" title="Excluir"><i class="fas fa-trash-alt"></i></button>
-                                ${p.status === 'Pendente' ? `<button data-id="${p.id}" class="toggle-status-btn text-green-500 hover:text-green-400 mx-2" title="Marcar como Pago"><i class="fas fa-check-circle"></i></button>` : ''}
-                            </td>
+                            <td class="p-4 text-center"><span class="status-badge ${authorizationBadgeClass}">${authorizationStatus.replace(/_/g, ' ')}</span></td>
+                            <td class="p-4 text-center whitespace-nowrap">${actionButtons}</td>
                         `;
                         tableBody.appendChild(row);
                     });
@@ -1110,9 +1138,16 @@
                         deleteBtn.innerHTML = '&times;';
                         deleteBtn.className = 'ml-4 text-red-400 hover:text-red-200 font-bold text-xl';
                         deleteBtn.onclick = () => {
-                            itemToDelete = { id: tag.id, type: 'tag' };
-                            deleteConfirmText.textContent = `Tem a certeza que deseja excluir a tag "${tag.name}"?`;
-                            confirmDeleteModal.style.display = 'flex';
+                            actionToConfirm = async () => {
+                                showLoader();
+                                const { error } = await _supabase.from('tags').delete().eq('id', tag.id);
+                                if (error) console.error("Erro ao excluir tag:", error);
+                                fetchTags();
+                                hideLoader();
+                            };
+                            confirmTitle.textContent = 'Confirmar Exclusão';
+                            confirmText.textContent = `Tem a certeza que deseja excluir a tag "${tag.name}"?`;
+                            confirmModal.style.display = 'flex';
                         };
                         div.appendChild(deleteBtn);
                         tagsListContainer.appendChild(div);
@@ -1139,7 +1174,6 @@
                     }
 
                     if (id || !isRecurring || !numberOfInstallments || numberOfInstallments < 2) {
-                        // Logic for single payment insert or update
                         const paymentData = {
                             description: formData.get('description'),
                             value: parseCurrency(formData.get('value').toString()),
@@ -1157,11 +1191,11 @@
                             const { error } = await _supabase.from('payments').update(paymentData).eq('id', id);
                             if (error) console.error("Erro ao atualizar:", error);
                         } else {
+                            paymentData.authorization_status = 'Pendente';
                             const { error } = await _supabase.from('payments').insert([paymentData]);
                             if (error) console.error("Erro ao inserir:", error);
                         }
                     } else {
-                        // Logic for new recurring payments
                         const paymentsToInsert = [];
                         const baseDescription = formData.get('description');
                         const firstDueDate = new Date(formData.get('dueDate') + 'T00:00:00');
@@ -1182,7 +1216,8 @@
                                 tag: formData.get('tag') || null,
                                 date: formData.get('date'),
                                 dueDate: currentDueDate.toISOString().slice(0,10),
-                                company_id: currentCompanyId
+                                company_id: currentCompanyId,
+                                authorization_status: 'Pendente'
                             };
                             paymentsToInsert.push(paymentData);
                         }
@@ -1226,19 +1261,61 @@
 
                     document.querySelectorAll('.delete-btn').forEach(btn => {
                         btn.addEventListener('click', (e) => {
-                            itemToDelete = { id: parseInt(e.currentTarget.dataset.id), type: 'payment' };
-                            deleteConfirmText.textContent = 'Tem a certeza que deseja excluir este pagamento? Esta ação não pode ser desfeita.';
-                            confirmDeleteModal.style.display = 'flex';
+                            const id = parseInt(e.currentTarget.dataset.id);
+                            actionToConfirm = async () => {
+                                showLoader();
+                                const { error } = await _supabase.from('payments').delete().eq('id', id);
+                                if (error) console.error("Erro ao excluir pagamento:", error);
+                                applyFilters();
+                            };
+                            confirmTitle.textContent = 'Confirmar Exclusão';
+                            confirmText.textContent = 'Tem a certeza que deseja excluir este pagamento? Esta ação não pode ser desfeita.';
+                            confirmModal.style.display = 'flex';
                         });
                     });
 
-                    document.querySelectorAll('.toggle-status-btn').forEach(async (btn) => {
+                    document.querySelectorAll('.toggle-status-btn').forEach(btn => {
                         btn.addEventListener('click', async (e) => {
                             const id = parseInt(e.currentTarget.dataset.id);
-                            showLoader();
-                            const { error } = await _supabase.from('payments').update({ status: 'Pago' }).eq('id', id);
-                            if (error) console.error("Erro ao marcar como pago:", error);
-                            fetchPaginatedPayments();
+                            actionToConfirm = async () => {
+                                showLoader();
+                                const { error } = await _supabase.from('payments').update({ status: 'Pago' }).eq('id', id);
+                                if (error) console.error("Erro ao marcar como pago:", error);
+                                fetchPaginatedPayments();
+                            };
+                            confirmTitle.textContent = 'Confirmar Pagamento';
+                            confirmText.textContent = 'Tem a certeza que deseja marcar este item como pago?';
+                            confirmModal.style.display = 'flex';
+                        });
+                    });
+
+                    document.querySelectorAll('.authorize-btn').forEach(btn => {
+                        btn.addEventListener('click', (e) => {
+                            const id = parseInt(e.currentTarget.dataset.id);
+                            actionToConfirm = async () => {
+                                showLoader();
+                                const { error } = await _supabase.from('payments').update({ authorization_status: 'Autorizado' }).eq('id', id);
+                                if (error) console.error("Erro ao autorizar pagamento:", error);
+                                fetchPaginatedPayments();
+                            };
+                            confirmTitle.textContent = 'Confirmar Autorização';
+                            confirmText.textContent = 'Tem a certeza que deseja autorizar este pagamento?';
+                            confirmModal.style.display = 'flex';
+                        });
+                    });
+
+                    document.querySelectorAll('.deny-btn').forEach(btn => {
+                        btn.addEventListener('click', (e) => {
+                            const id = parseInt(e.currentTarget.dataset.id);
+                            actionToConfirm = async () => {
+                                showLoader();
+                                const { error } = await _supabase.from('payments').update({ authorization_status: 'Não Autorizado' }).eq('id', id);
+                                if (error) console.error("Erro ao não autorizar pagamento:", error);
+                                fetchPaginatedPayments();
+                            };
+                            confirmTitle.textContent = 'Confirmar Rejeição';
+                            confirmText.textContent = 'Tem a certeza que deseja não autorizar este pagamento?';
+                            confirmModal.style.display = 'flex';
                         });
                     });
                 };
@@ -1246,9 +1323,18 @@
                 const addLoanEventListeners = () => {
                     document.querySelectorAll('.delete-loan-btn').forEach(btn => {
                         btn.addEventListener('click', (e) => {
-                            itemToDelete = { id: parseInt(e.currentTarget.dataset.id), type: 'loan' };
-                            deleteConfirmText.textContent = 'Tem a certeza que deseja excluir este empréstimo e todas as suas parcelas? Esta ação não pode ser desfeita.';
-                            confirmDeleteModal.style.display = 'flex';
+                            const id = parseInt(e.currentTarget.dataset.id);
+                            actionToConfirm = async () => {
+                                showLoader();
+                                const { error: paymentsError } = await _supabase.from('payments').delete().eq('loan_id', id);
+                                if (paymentsError) console.error("Erro ao excluir parcelas:", paymentsError);
+                                const { error: loanError } = await _supabase.from('loans').delete().eq('id', id);
+                                if (loanError) console.error("Erro ao excluir empréstimo:", loanError);
+                                applyFilters();
+                            };
+                            confirmTitle.textContent = 'Confirmar Exclusão de Empréstimo';
+                            confirmText.textContent = 'Tem a certeza que deseja excluir este empréstimo e todas as suas parcelas?';
+                            confirmModal.style.display = 'flex';
                         });
                     });
                 };
@@ -1288,33 +1374,18 @@
                     }
                 });
 
-                // Listeners do Modal de Exclusão
-                cancelDeleteBtn.addEventListener('click', () => {
-                    confirmDeleteModal.style.display = 'none';
-                    itemToDelete = { id: null, type: null };
+                // Listeners do Modal de Confirmação
+                cancelConfirmBtn.addEventListener('click', () => {
+                    confirmModal.style.display = 'none';
+                    actionToConfirm = null;
                 });
 
-                confirmDeleteBtn.addEventListener('click', async () => {
-                    if (itemToDelete.id !== null) {
-                        showLoader();
-                        if (itemToDelete.type === 'payment') {
-                            const { error } = await _supabase.from('payments').delete().eq('id', itemToDelete.id);
-                            if (error) console.error("Erro ao excluir pagamento:", error);
-                        } else if (itemToDelete.type === 'tag') {
-                            const { error } = await _supabase.from('tags').delete().eq('id', itemToDelete.id);
-                            if (error) console.error("Erro ao excluir tag:", error);
-                            fetchTags();
-                        } else if (itemToDelete.type === 'loan') {
-                            const { error: paymentsError } = await _supabase.from('payments').delete().eq('loan_id', itemToDelete.id);
-                            if (paymentsError) console.error("Erro ao excluir parcelas:", paymentsError);
-                            const { error: loanError } = await _supabase.from('loans').delete().eq('id', itemToDelete.id);
-                            if (loanError) console.error("Erro ao excluir empréstimo:", loanError);
-                        }
-                        
-                        confirmDeleteModal.style.display = 'none';
-                        itemToDelete = { id: null, type: null };
-                        applyFilters();
+                confirmBtn.addEventListener('click', async () => {
+                    if (typeof actionToConfirm === 'function') {
+                        await actionToConfirm();
                     }
+                    confirmModal.style.display = 'none';
+                    actionToConfirm = null;
                 });
 
                 // Listeners de Gestão de Tags
@@ -1384,7 +1455,8 @@
                             priority: 'Alta',
                             loan_id: loanData.id,
                             tag: tag,
-                            company_id: currentCompanyId
+                            company_id: currentCompanyId,
+                            authorization_status: 'Autorizado' // Loan installments are pre-authorized
                         });
                         currentDueDate.setMonth(currentDueDate.getMonth() + 1);
                     }
