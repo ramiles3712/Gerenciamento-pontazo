@@ -39,8 +39,8 @@
         .notification-bell { position: relative; cursor: pointer; }
         .notification-badge { position: absolute; top: -5px; right: -8px; background-color: #ef4444; color: white; border-radius: 50%; width: 20px; height: 20px; font-size: 12px; display: flex; align-items: center; justify-content: center; }
         .notification-dropdown { display: none; position: absolute; top: 100%; right: 0; background-color: #1e293b; border: 1px solid #334155; border-radius: 0.5rem; width: 300px; max-height: 400px; overflow-y: auto; z-index: 50; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); }
-        .loading-overlay { display: none; position: fixed; inset: 0; background-color: rgba(0,0,0,0.5); z-index: 100; justify-content: center; align-items: center; }
-        .loader { border: 5px solid #f3f3f3; border-top: 5px solid #3498db; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; }
+        .loading-overlay { display: none; position: fixed; inset: 0; background-color: rgba(15, 23, 42, 0.8); z-index: 100; justify-content: center; align-items: center; backdrop-filter: blur(4px); }
+        .loader { border: 5px solid #334155; border-top: 5px solid #22d3ee; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
@@ -74,18 +74,21 @@
         <div class="container mx-auto p-4 md:p-8">
             <!-- Cabeçalho -->
             <header class="flex justify-between items-center mb-8">
-                <div class="w-1/3"></div>
+                 <!-- Seletor de Empresa -->
+                <div class="w-1/3 relative">
+                    <select id="company-selector" class="filter-select w-full max-w-xs text-lg">
+                        <!-- Opções de empresa serão carregadas aqui -->
+                    </select>
+                </div>
                 <div class="w-1/3 text-center">
                     <h1 class="text-4xl md:text-5xl font-bold text-white">PONTAZO <span class="text-cyan-400">BANK</span></h1>
                     <p class="text-lg text-slate-400 mt-2">Seu controle financeiro, simplificado.</p>
                 </div>
-                <div class="w-1/3 flex justify-end">
+                <div class="w-1/3 flex justify-end items-center gap-6">
                     <div id="notification-bell" class="notification-bell text-2xl text-slate-400 hover:text-white">
                         <i class="fas fa-bell"></i>
                         <span id="notification-badge" class="notification-badge hidden">0</span>
-                        <div id="notification-dropdown" class="notification-dropdown text-sm">
-                            <!-- Notificações serão inseridas aqui -->
-                        </div>
+                        <div id="notification-dropdown" class="notification-dropdown text-sm"></div>
                     </div>
                 </div>
             </header>
@@ -224,6 +227,16 @@
                     </div>
                 </div>
             </main>
+
+            <footer class="text-center py-6 mt-10 border-t border-slate-800">
+                <p class="text-sm text-slate-400">
+                    CRIADO POR: RAMILES SILVA – 
+                    <a href="https://www.ramilesdev.com" target="_blank" rel="noopener noreferrer" class="font-medium text-cyan-400 hover:text-cyan-300 transition-colors">
+                        www.ramilesdev.com
+                    </a>
+                </p>
+            </footer>
+
         </div>
     </div>
 
@@ -288,6 +301,21 @@
                         </select>
                     </div>
                     
+                    <!-- Recurring Payment Section -->
+                    <div id="recurring-payment-section">
+                        <div class="border-t border-slate-700 my-6"></div>
+                        <div>
+                            <label class="flex items-center space-x-3 cursor-pointer">
+                                <input type="checkbox" id="recurring-payment-checkbox" class="w-5 h-5 bg-slate-700 border-slate-600 rounded text-cyan-500 focus:ring-cyan-500">
+                                <span class="text-slate-300">Lançar como Pagamento Recorrente / Parcelado</span>
+                            </label>
+                        </div>
+                        <div id="installments-container" class="hidden mt-4">
+                            <label for="installments" class="block text-sm font-medium text-slate-300 mb-2">Número de Parcelas</label>
+                            <input type="number" id="installments" name="installments" min="2" placeholder="Ex: 12" class="w-full bg-slate-700 border border-slate-600 text-white rounded-lg p-3 focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                        </div>
+                    </div>
+
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <label for="attachment" class="block text-sm font-medium text-slate-300 mb-2">Anexar Comprovativo</label>
@@ -421,6 +449,7 @@
             const appContainer = document.getElementById('app-container');
             const loginForm = document.getElementById('login-form');
             const loginError = document.getElementById('login-error');
+            const companySelector = document.getElementById('company-selector');
 
             const exportPdfBtn = document.getElementById('export-pdf-btn');
             const addBtn = document.getElementById('add-btn');
@@ -466,14 +495,15 @@
             const loanModal = document.getElementById('loan-modal');
             const loanForm = document.getElementById('loan-form');
             const cancelLoanBtn = document.getElementById('cancel-loan-btn');
+            const recurringPaymentSection = document.getElementById('recurring-payment-section');
+            const recurringPaymentCheckbox = document.getElementById('recurring-payment-checkbox');
+            const installmentsContainer = document.getElementById('installments-container');
+            const installmentsInput = document.getElementById('installments');
             
             // Resumo
             const totalValueEl = document.getElementById('total-value');
             const pendingCountEl = document.getElementById('pending-count');
             const paidCountEl = document.getElementById('paid-count');
-            const totalValueTitle = document.getElementById('total-value-title');
-            const pendingCountTitle = document.getElementById('pending-count-title');
-            const paidCountTitle = document.getElementById('paid-count-title');
 
             // --- ESTADO DA APLICAÇÃO ---
             let currentModule = 'DASHBOARD';
@@ -490,6 +520,13 @@
             const ITEMS_PER_PAGE = 50;
             let totalItems = 0;
 
+            // --- ESTADO DA EMPRESA ---
+            const companies = [
+                { id: 1, name: 'PONTAZO BANK' },
+                { id: 2, name: 'ISAO' }
+            ];
+            let currentCompanyId = companies[0].id;
+
             // --- CONFIGURAÇÃO DO SUPABASE ---
             const SUPABASE_URL = 'https://cykvtziwulnqgyyaeugj.supabase.co';
             const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN5a3Z0eml3dWxucWd5eWFldWdqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEzODkyMTcsImV4cCI6MjA2Njk2NTIxN30.fbSC1VOp0OT7TKnGAgwbaiqPEAMUty4bfgRN6esCLZo';
@@ -500,7 +537,7 @@
             const showLoader = () => loadingOverlay.style.display = 'flex';
             const hideLoader = () => loadingOverlay.style.display = 'none';
 
-            // --- LÓGICA DE LOGIN ---
+            // --- LÓGICA DE LOGIN ESTÁTICO ---
             loginForm.addEventListener('submit', (e) => {
                 e.preventDefault();
                 const username = document.getElementById('username').value;
@@ -515,7 +552,32 @@
                 }
             });
 
+            // --- LÓGICA DE EMPRESA ---
+            const populateCompanySelector = () => {
+                companySelector.innerHTML = '';
+                companies.forEach(company => {
+                    const option = document.createElement('option');
+                    option.value = company.id;
+                    option.textContent = company.name;
+                    companySelector.appendChild(option);
+                });
+                companySelector.value = currentCompanyId;
+            };
+
             async function initializeMainApp() {
+                showLoader();
+                populateCompanySelector();
+
+                const switchCompany = (companyId) => {
+                    const newCompanyId = parseInt(companyId);
+                    if (currentCompanyId !== newCompanyId) {
+                        currentCompanyId = newCompanyId;
+                        applyFilters();
+                    }
+                };
+                
+                companySelector.addEventListener('change', (e) => switchCompany(e.target.value));
+
                 // --- FUNÇÕES AUXILIARES ---
                 const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
                 const formatDate = (dateString) => {
@@ -529,7 +591,7 @@
                 }
                 const stringToColor = (str) => {
                     let hash = 0;
-                    if (!str) return '#64748b'; // Cor padrão para tags nulas/indefinidas
+                    if (!str) return '#64748b';
                     for (let i = 0; i < str.length; i++) {
                         hash = str.charCodeAt(i) + ((hash << 5) - hash);
                     }
@@ -540,9 +602,8 @@
                 // --- BUSCAR DADOS DO SUPABASE ---
                 async function fetchPaginatedPayments() {
                     showLoader();
-                    let query = _supabase.from('payments').select('*', { count: 'exact' });
+                    let query = _supabase.from('payments').select('*', { count: 'exact' }).eq('company_id', currentCompanyId);
 
-                    // Aplicar filtros
                     if (currentModule === 'CONTAS A PAGAR') {
                         query = query.eq('status', 'Pendente');
                     } else if (currentModule !== 'DASHBOARD' && currentModule !== 'EMPRESTIMOS') {
@@ -566,7 +627,6 @@
                         }
                     }
 
-                    // Paginação
                     const from = (currentPage - 1) * ITEMS_PER_PAGE;
                     const to = from + ITEMS_PER_PAGE - 1;
                     query = query.range(from, to).order('dueDate', { ascending: true });
@@ -586,7 +646,7 @@
 
                 async function fetchAllFilteredDataForDashboard() {
                     showLoader();
-                    let query = _supabase.from('payments').select('*');
+                    let query = _supabase.from('payments').select('*').eq('company_id', currentCompanyId);
                     if (selectedYear !== 'all') {
                         const startDate = `${selectedYear}-01-01`;
                         const endDate = `${selectedYear}-12-31`;
@@ -609,8 +669,11 @@
 
                 // --- LÓGICA DO MODAL ---
                 const openModal = (type) => {
-                    if (type === 'payment') paymentModal.style.display = 'flex';
-                    else if (type === 'loan') loanModal.style.display = 'flex';
+                    if (type === 'payment') {
+                        paymentModal.style.display = 'flex';
+                    } else if (type === 'loan') {
+                        loanModal.style.display = 'flex';
+                    }
                 };
                 const closeModal = (type) => {
                     if (type === 'payment') {
@@ -618,6 +681,9 @@
                         paymentForm.reset();
                         paymentIdInput.value = '';
                         modalTitle.textContent = 'Adicionar Novo Pagamento';
+                        recurringPaymentCheckbox.checked = false;
+                        installmentsContainer.classList.add('hidden');
+                        installmentsInput.value = '';
                     } else if (type === 'loan') {
                         loanModal.style.display = 'none';
                         loanForm.reset();
@@ -627,7 +693,7 @@
                 // --- LÓGICA DE FILTROS ---
                 const populateYearFilter = async () => {
                     showLoader();
-                    const { data, error } = await _supabase.from('payments').select('date');
+                    const { data, error } = await _supabase.from('payments').select('date').eq('company_id', currentCompanyId);
                     hideLoader();
                     
                     if (error) {
@@ -649,7 +715,7 @@
                 };
 
                 const applyFilters = () => {
-                    currentPage = 1; // Reset page on new filter
+                    currentPage = 1; 
                     selectedYear = yearFilter.value;
                     selectedMonth = monthFilter.value;
                     searchTerm = searchInput.value;
@@ -675,8 +741,8 @@
                     sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
                     const sevenDaysISO = sevenDaysFromNow.toISOString().slice(0, 10);
 
-                    const { data: overdue, error: overdueError } = await _supabase.from('payments').select('description, dueDate').eq('status', 'Pendente').lt('dueDate', today);
-                    const { data: upcoming, error: upcomingError } = await _supabase.from('payments').select('description, dueDate').eq('status', 'Pendente').gte('dueDate', today).lte('dueDate', sevenDaysISO);
+                    const { data: overdue, error: overdueError } = await _supabase.from('payments').select('description, dueDate').eq('company_id', currentCompanyId).eq('status', 'Pendente').lt('dueDate', today);
+                    const { data: upcoming, error: upcomingError } = await _supabase.from('payments').select('description, dueDate').eq('company_id', currentCompanyId).eq('status', 'Pendente').gte('dueDate', today).lte('dueDate', sevenDaysISO);
                     
                     if(overdueError || upcomingError) { console.error('Erro ao buscar notificações'); return; }
 
@@ -887,12 +953,13 @@
 
                 const renderLoans = async () => {
                     showLoader();
-                    const { data: loans, error: loansError } = await _supabase.from('loans').select('*').order('created_at');
-                    const { data: payments, error: paymentsError } = await _supabase.from('payments').select('loan_id, status');
+                    const { data: loans, error: loansError } = await _supabase.from('loans').select('*').eq('company_id', currentCompanyId).order('created_at');
+                    const { data: payments, error: paymentsError } = await _supabase.from('payments').select('loan_id, status').eq('company_id', currentCompanyId);
                     hideLoader();
 
                     if (loansError || paymentsError) {
                         console.error('Erro ao buscar empréstimos ou pagamentos:', loansError || paymentsError);
+                        loansView.innerHTML = `<div class="lg:col-span-3 text-center p-12 text-slate-400"><p>Erro ao carregar empréstimos.</p></div>`;
                         return;
                     }
 
@@ -986,7 +1053,7 @@
                         doc.addImage(statusChartImg, 'PNG', 14, 20, 180, 90);
                         doc.save(`Relatorio_Dashboard_PONTAZO_BANK_${todayDate}.pdf`);
                     } else {
-                        let query = _supabase.from('payments').select('*');
+                        let query = _supabase.from('payments').select('*').eq('company_id', currentCompanyId);
                         if (currentModule === 'CONTAS A PAGAR') {
                             query = query.eq('status', 'Pendente');
                         } else {
@@ -1011,7 +1078,7 @@
 
                 // --- LÓGICA DE TAGS ---
                 const fetchTags = async () => {
-                    const { data, error } = await _supabase.from('tags').select('id, name').order('name');
+                    const { data, error } = await _supabase.from('tags').select('id, name').eq('company_id', currentCompanyId).order('name');
                     if (error) { console.error('Erro ao buscar tags:', error); return; }
                     allTags = data;
                     populateTagFilter();
@@ -1058,36 +1125,73 @@
                     showLoader();
                     const formData = new FormData(paymentForm);
                     const id = formData.get('payment-id');
+                    const isRecurring = recurringPaymentCheckbox.checked;
+                    const numberOfInstallments = parseInt(installmentsInput.value);
                     const attachmentFile = document.getElementById('attachment').files[0];
                     let attachmentUrl = id ? allPayments.find(p => p.id == id).attachment : null;
 
                     if (attachmentFile) {
-                        const filePath = `public/${Date.now()}-${attachmentFile.name}`;
+                        const filePath = `${currentCompanyId}/${Date.now()}-${attachmentFile.name}`;
                         const { error: uploadError } = await _supabase.storage.from('comprovativos').upload(filePath, attachmentFile);
                         if (uploadError) { console.error('Erro no upload do anexo:', uploadError); alert('Falha ao enviar o anexo.'); hideLoader(); return; }
                         const { data: urlData } = _supabase.storage.from('comprovativos').getPublicUrl(filePath);
                         attachmentUrl = urlData.publicUrl;
                     }
 
-                    const rawValue = formData.get('value').toString();
-                    const sanitizedValue = parseCurrency(rawValue);
-
-                    const paymentData = {
-                        description: formData.get('description'), value: sanitizedValue, paymentMethod: formData.get('payment-method'),
-                        module: formData.get('module'), priority: formData.get('priority'), status: formData.get('status'), attachment: attachmentUrl,
-                        tag: formData.get('tag') || null, date: formData.get('date'), dueDate: formData.get('dueDate')
-                    };
-                    
-                    if (id) {
-                        const { error } = await _supabase.from('payments').update(paymentData).eq('id', id);
-                        if (error) console.error("Erro ao atualizar:", error);
+                    if (id || !isRecurring || !numberOfInstallments || numberOfInstallments < 2) {
+                        // Logic for single payment insert or update
+                        const paymentData = {
+                            description: formData.get('description'),
+                            value: parseCurrency(formData.get('value').toString()),
+                            paymentMethod: formData.get('payment-method'),
+                            module: formData.get('module'),
+                            priority: formData.get('priority'),
+                            status: formData.get('status'),
+                            attachment: attachmentUrl,
+                            tag: formData.get('tag') || null,
+                            date: formData.get('date'),
+                            dueDate: formData.get('dueDate'),
+                            company_id: currentCompanyId
+                        };
+                        if (id) {
+                            const { error } = await _supabase.from('payments').update(paymentData).eq('id', id);
+                            if (error) console.error("Erro ao atualizar:", error);
+                        } else {
+                            const { error } = await _supabase.from('payments').insert([paymentData]);
+                            if (error) console.error("Erro ao inserir:", error);
+                        }
                     } else {
-                         const { error } = await _supabase.from('payments').insert([paymentData]);
-                         if (error) console.error("Erro ao inserir:", error);
+                        // Logic for new recurring payments
+                        const paymentsToInsert = [];
+                        const baseDescription = formData.get('description');
+                        const firstDueDate = new Date(formData.get('dueDate') + 'T00:00:00');
+                        const rawValue = parseCurrency(formData.get('value').toString());
+
+                        for (let i = 0; i < numberOfInstallments; i++) {
+                            const currentDueDate = new Date(firstDueDate);
+                            currentDueDate.setMonth(firstDueDate.getMonth() + i);
+
+                            const paymentData = {
+                                description: `${baseDescription} - Parcela ${i + 1}/${numberOfInstallments}`,
+                                value: rawValue,
+                                paymentMethod: formData.get('payment-method'),
+                                module: formData.get('module'),
+                                priority: formData.get('priority'),
+                                status: formData.get('status'),
+                                attachment: attachmentUrl,
+                                tag: formData.get('tag') || null,
+                                date: formData.get('date'),
+                                dueDate: currentDueDate.toISOString().slice(0,10),
+                                company_id: currentCompanyId
+                            };
+                            paymentsToInsert.push(paymentData);
+                        }
+                        const { error } = await _supabase.from('payments').insert(paymentsToInsert);
+                        if (error) console.error("Erro ao inserir pagamentos recorrentes:", error);
                     }
                     
                     closeModal('payment');
-                    fetchPaginatedPayments();
+                    applyFilters();
                 });
                 
                 moduleTabsContainer.addEventListener('click', (e) => {
@@ -1114,6 +1218,7 @@
                                 document.getElementById('priority').value = payment.priority;
                                 document.getElementById('status').value = payment.status;
                                 document.getElementById('tags-select').value = payment.tag || '';
+                                recurringPaymentSection.style.display = 'none';
                                 openModal('payment');
                             }
                         });
@@ -1165,6 +1270,7 @@
                     const today = new Date().toISOString().split('T')[0];
                     document.getElementById('date').value = today;
                     document.getElementById('dueDate').value = today;
+                    recurringPaymentSection.style.display = 'block';
                     openModal('payment');
                 });
                 
@@ -1175,6 +1281,13 @@
                 paymentModal.addEventListener('click', (e) => { if (e.target === paymentModal) closeModal('payment'); });
                 loanModal.addEventListener('click', (e) => { if (e.target === loanModal) closeModal('loan'); });
                 
+                recurringPaymentCheckbox.addEventListener('change', () => {
+                    installmentsContainer.classList.toggle('hidden', !recurringPaymentCheckbox.checked);
+                    if (!recurringPaymentCheckbox.checked) {
+                        installmentsInput.value = '';
+                    }
+                });
+
                 // Listeners do Modal de Exclusão
                 cancelDeleteBtn.addEventListener('click', () => {
                     confirmDeleteModal.style.display = 'none';
@@ -1212,7 +1325,7 @@
                     const newTagName = newTagNameInput.value.trim();
                     if (newTagName && !allTags.some(t => t.name.toLowerCase() === newTagName.toLowerCase())) {
                         showLoader();
-                        const { error } = await _supabase.from('tags').insert([{ name: newTagName }]);
+                        const { error } = await _supabase.from('tags').insert([{ name: newTagName, company_id: currentCompanyId }]);
                         hideLoader();
                         if (error) console.error('Erro ao adicionar tag:', error);
                         else {
@@ -1242,7 +1355,8 @@
                         .insert([{ 
                             description, total_amount: totalAmount, installments, start_date: startDate, status: 'Ativo',
                             prazo_pagamento_meses: installments, carencia_meses: gracePeriod, valor_iof_rs: iof,
-                            valor_tac_rs: tac, cet_am: cet, juros_nominais_am: nominalInterest, outros_encargos_am: otherCharges
+                            valor_tac_rs: tac, cet_am: cet, juros_nominais_am: nominalInterest, outros_encargos_am: otherCharges,
+                            company_id: currentCompanyId
                         }])
                         .select()
                         .single();
@@ -1269,7 +1383,8 @@
                             module: 'EMPRESTIMOS',
                             priority: 'Alta',
                             loan_id: loanData.id,
-                            tag: tag
+                            tag: tag,
+                            company_id: currentCompanyId
                         });
                         currentDueDate.setMonth(currentDueDate.getMonth() + 1);
                     }
@@ -1286,11 +1401,12 @@
                     if (el.tagName === 'INPUT') el.addEventListener('keyup', applyFilters);
                 });
                 exportPdfBtn.addEventListener('click', exportToPDF);
-
-                // --- INICIALIZAÇÃO ---
-                populateYearFilter();
-                fetchTags();
+                
+                // --- INICIALIZAÇÃO DA APLICAÇÃO ---
+                await populateYearFilter();
+                await fetchTags();
                 applyFilters();
+                hideLoader();
             }
         });
     </script>
