@@ -94,6 +94,7 @@
             <div class="mb-4 border-b border-slate-700">
                 <nav id="module-tabs" class="flex -mb-px overflow-x-auto">
                     <button class="tab-btn" data-module="DASHBOARD">Dashboard</button>
+                    <button class="tab-btn" data-module="CONTAS A PAGAR">Contas a Pagar</button>
                     <button class="tab-btn" data-module="DESPESAS ADM MENSAIS">Despesas ADM</button>
                     <button class="tab-btn" data-module="FOLHA DE PAGAMENTO">Folha de Pagamento</button>
                     <button class="tab-btn" data-module="IMPOSTOS">Impostos</button>
@@ -176,9 +177,11 @@
                         <select id="tag-filter" class="filter-select">
                             <option value="all">Todas as Tags</option>
                         </select>
-                        <button id="add-payment-btn" class="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2">
-                            <i class="fas fa-plus-circle"></i> Adicionar
-                        </button>
+                        <div id="add-payment-container">
+                            <button id="add-payment-btn" class="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2">
+                                <i class="fas fa-plus-circle"></i> Adicionar
+                            </button>
+                        </div>
                     </div>
 
                     <div class="bg-slate-800 rounded-2xl shadow-lg border border-slate-700 overflow-hidden">
@@ -221,7 +224,7 @@
             <div class="modal-content bg-slate-800 w-full max-w-2xl mx-auto rounded-2xl shadow-2xl border border-slate-700">
                 <form id="payment-form" class="p-8 space-y-6">
                     <h2 id="modal-title" class="text-2xl font-bold mb-6 text-white">Adicionar Novo Pagamento</h2>
-                    <input type="hidden" id="payment-id">
+                    <input type="hidden" id="payment-id" name="payment-id">
                     
                     <div>
                         <label for="description" class="block text-sm font-medium text-slate-300 mb-2">Descrição</label>
@@ -486,7 +489,12 @@
                     let query = _supabase.from('payments').select('*', { count: 'exact' });
 
                     // Aplicar filtros
-                    if (currentModule !== 'DASHBOARD') query = query.eq('module', currentModule);
+                    if (currentModule === 'CONTAS A PAGAR') {
+                        query = query.eq('status', 'Pendente');
+                    } else if (currentModule !== 'DASHBOARD') {
+                        query = query.eq('module', currentModule);
+                    }
+
                     if (searchTerm) query = query.ilike('description', `%${searchTerm}%`);
                     if (selectedPriority !== 'all') query = query.eq('priority', selectedPriority);
                     if (selectedPaymentMethod !== 'all') query = query.eq('paymentMethod', selectedPaymentMethod);
@@ -639,6 +647,8 @@
                 // --- LÓGICA DE RENDERIZAÇÃO ---
                 const updateUI = async () => {
                     updateActiveTab();
+                    const addPaymentContainer = document.getElementById('add-payment-container');
+                    
                     if (currentModule === 'DASHBOARD') {
                         paginationControls.style.display = 'none';
                         chartsSection.style.display = 'grid';
@@ -649,6 +659,7 @@
                         paginationControls.style.display = 'flex';
                         chartsSection.style.display = 'none';
                         moduleContent.style.display = 'block';
+                        addPaymentContainer.style.display = currentModule === 'CONTAS A PAGAR' ? 'none' : 'block';
                         renderTable(allPayments);
                         updateModuleSummary(allPayments);
                         updatePaginationControls();
