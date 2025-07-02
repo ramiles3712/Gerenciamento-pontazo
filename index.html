@@ -95,6 +95,7 @@
                 <nav id="module-tabs" class="flex -mb-px overflow-x-auto">
                     <button class="tab-btn" data-module="DASHBOARD">Dashboard</button>
                     <button class="tab-btn" data-module="CONTAS A PAGAR">Contas a Pagar</button>
+                    <button class="tab-btn" data-module="EMPRESTIMOS">Empréstimos</button>
                     <button class="tab-btn" data-module="DESPESAS ADM MENSAIS">Despesas ADM</button>
                     <button class="tab-btn" data-module="FOLHA DE PAGAMENTO">Folha de Pagamento</button>
                     <button class="tab-btn" data-module="IMPOSTOS">Impostos</button>
@@ -177,14 +178,18 @@
                         <select id="tag-filter" class="filter-select">
                             <option value="all">Todas as Tags</option>
                         </select>
-                        <div id="add-payment-container">
-                            <button id="add-payment-btn" class="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2">
-                                <i class="fas fa-plus-circle"></i> Adicionar
+                        <div id="add-payment-container" class="relative">
+                            <button id="add-btn" class="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2">
+                                <i class="fas fa-plus-circle"></i> Adicionar <i class="fas fa-caret-down ml-2"></i>
                             </button>
+                            <div id="add-dropdown" class="hidden absolute right-0 mt-2 w-48 bg-slate-700 rounded-md shadow-lg z-20">
+                                <a href="#" id="add-payment-btn" class="block px-4 py-2 text-sm text-slate-200 hover:bg-slate-600">Novo Pagamento</a>
+                                <a href="#" id="add-loan-btn" class="block px-4 py-2 text-sm text-slate-200 hover:bg-slate-600">Novo Empréstimo</a>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="bg-slate-800 rounded-2xl shadow-lg border border-slate-700 overflow-hidden">
+                    <div id="payments-view" class="bg-slate-800 rounded-2xl shadow-lg border border-slate-700 overflow-hidden">
                         <div class="table-responsive">
                             <table class="w-full text-left">
                                 <thead class="bg-slate-700/50">
@@ -212,6 +217,10 @@
                             <span id="page-info" class="text-slate-400">Página 1 de 1</span>
                             <button id="next-page-btn" class="bg-slate-600 hover:bg-slate-500 text-white font-bold py-2 px-4 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed">Próximo</button>
                         </div>
+                    </div>
+
+                    <div id="loans-view" class="hidden grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <!-- Cards de Empréstimos serão inseridos aqui -->
                     </div>
                 </div>
             </main>
@@ -278,32 +287,6 @@
                             <!-- Opções de tags serão inseridas aqui -->
                         </select>
                     </div>
-
-                    <!-- Seção de Recorrência -->
-                    <div class="bg-slate-700/50 p-4 rounded-lg space-y-4">
-                        <div class="flex items-center">
-                            <input type="checkbox" id="is-recurring" name="is-recurring" class="h-4 w-4 rounded border-gray-300 text-cyan-600 focus:ring-cyan-500">
-                            <label for="is-recurring" class="ml-3 block text-sm font-medium text-slate-200">É um pagamento recorrente?</label>
-                        </div>
-                        <div id="recurring-options" class="hidden space-y-4">
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div>
-                                    <label for="recurrence-frequency" class="block text-sm font-medium text-slate-300 mb-2">Frequência</label>
-                                    <select id="recurrence-frequency" name="recurrence-frequency" class="w-full bg-slate-700 border border-slate-600 text-white rounded-lg p-3 focus:ring-2 focus:ring-cyan-500 focus:outline-none">
-                                        <option value="monthly">Mensal</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label for="recurrence-count" class="block text-sm font-medium text-slate-300 mb-2">Repetir por (meses)</label>
-                                    <input type="number" id="recurrence-count" name="recurrence-count" value="1" min="1" max="120" class="w-full bg-slate-700 border border-slate-600 text-white rounded-lg p-3 focus:ring-2 focus:ring-cyan-500 focus:outline-none">
-                                </div>
-                            </div>
-                            <div class="flex items-center">
-                                <input type="checkbox" id="is-permanent" name="is-permanent" class="h-4 w-4 rounded border-gray-300 text-cyan-600 focus:ring-cyan-500">
-                                <label for="is-permanent" class="ml-3 block text-sm font-medium text-slate-200">Permanente (10 anos)</label>
-                            </div>
-                        </div>
-                    </div>
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
@@ -321,6 +304,74 @@
                     <div class="flex justify-end gap-4 pt-4">
                         <button type="button" id="cancel-btn" class="bg-slate-600 hover:bg-slate-500 text-white font-bold py-2 px-6 rounded-lg transition">Cancelar</button>
                         <button type="submit" class="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-6 rounded-lg transition">Salvar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal para Adicionar Empréstimo -->
+    <div id="loan-modal" class="modal-backdrop">
+        <div class="fixed inset-0 flex items-center justify-center z-50 p-4">
+            <div class="modal-content bg-slate-800 w-full max-w-2xl mx-auto rounded-2xl shadow-2xl border border-slate-700">
+                <form id="loan-form" class="p-8 space-y-6">
+                    <h2 class="text-2xl font-bold mb-6 text-white">Adicionar Novo Empréstimo</h2>
+                    <div>
+                        <label for="loan-description" class="block text-sm font-medium text-slate-300 mb-2">Descrição</label>
+                        <input type="text" id="loan-description" name="loan-description" class="w-full bg-slate-700 border border-slate-600 text-white rounded-lg p-3" required>
+                    </div>
+                    <div class="border-t border-slate-700 pt-6">
+                        <h3 class="text-lg font-semibold text-cyan-400 mb-4">Parâmetros e Taxas</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                            <div>
+                                <label for="loan-amount" class="block text-sm font-medium text-slate-300 mb-2">Valor da Proposta (R$)</label>
+                                <input type="text" id="loan-amount" name="loan-amount" class="w-full bg-slate-700 border border-slate-600 text-white rounded-lg p-3" required>
+                            </div>
+                            <div>
+                                <label for="loan-installments" class="block text-sm font-medium text-slate-300 mb-2">Prazo (Meses)</label>
+                                <input type="number" id="loan-installments" name="loan-installments" min="1" class="w-full bg-slate-700 border border-slate-600 text-white rounded-lg p-3" required>
+                            </div>
+                            <div>
+                                <label for="loan-grace-period" class="block text-sm font-medium text-slate-300 mb-2">Carência (Meses)</label>
+                                <input type="number" id="loan-grace-period" name="loan-grace-period" min="0" class="w-full bg-slate-700 border border-slate-600 text-white rounded-lg p-3" required>
+                            </div>
+                            <div>
+                                <label for="loan-iof" class="block text-sm font-medium text-slate-300 mb-2">Valor IOF (R$)</label>
+                                <input type="text" id="loan-iof" name="loan-iof" class="w-full bg-slate-700 border border-slate-600 text-white rounded-lg p-3">
+                            </div>
+                             <div>
+                                <label for="loan-tac" class="block text-sm font-medium text-slate-300 mb-2">Valor TAC (R$)</label>
+                                <input type="text" id="loan-tac" name="loan-tac" class="w-full bg-slate-700 border border-slate-600 text-white rounded-lg p-3">
+                            </div>
+                            <div>
+                                <label for="loan-cet" class="block text-sm font-medium text-slate-300 mb-2">CET (% a.m.)</label>
+                                <input type="text" id="loan-cet" name="loan-cet" class="w-full bg-slate-700 border border-slate-600 text-white rounded-lg p-3">
+                            </div>
+                             <div>
+                                <label for="loan-nominal-interest" class="block text-sm font-medium text-slate-300 mb-2">Juros Nominais (% a.m.)</label>
+                                <input type="text" id="loan-nominal-interest" name="loan-nominal-interest" class="w-full bg-slate-700 border border-slate-600 text-white rounded-lg p-3">
+                            </div>
+                            <div>
+                                <label for="loan-other-charges" class="block text-sm font-medium text-slate-300 mb-2">Outros Encargos (% a.m.)</label>
+                                <input type="text" id="loan-other-charges" name="loan-other-charges" class="w-full bg-slate-700 border border-slate-600 text-white rounded-lg p-3">
+                            </div>
+                        </div>
+                    </div>
+                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label for="loan-start-date" class="block text-sm font-medium text-slate-300 mb-2">Data da 1ª Parcela</label>
+                            <input type="date" id="loan-start-date" name="loan-start-date" class="w-full bg-slate-700 border border-slate-600 text-white rounded-lg p-3" required>
+                        </div>
+                        <div>
+                            <label for="loan-tag" class="block text-sm font-medium text-slate-300 mb-2">Tag</label>
+                            <select id="loan-tag" name="loan-tag" class="w-full bg-slate-700 border border-slate-600 text-white rounded-lg p-3">
+                                <option value="">Nenhuma</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="flex justify-end gap-4 pt-4">
+                        <button type="button" id="cancel-loan-btn" class="bg-slate-600 hover:bg-slate-500 text-white font-bold py-2 px-6 rounded-lg">Cancelar</button>
+                        <button type="submit" class="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-6 rounded-lg">Gerar Parcelas</button>
                     </div>
                 </form>
             </div>
@@ -372,7 +423,10 @@
             const loginError = document.getElementById('login-error');
 
             const exportPdfBtn = document.getElementById('export-pdf-btn');
+            const addBtn = document.getElementById('add-btn');
+            const addDropdown = document.getElementById('add-dropdown');
             const addPaymentBtn = document.getElementById('add-payment-btn');
+            const addLoanBtn = document.getElementById('add-loan-btn');
             const paymentModal = document.getElementById('payment-modal');
             const paymentForm = document.getElementById('payment-form');
             const cancelBtn = document.getElementById('cancel-btn');
@@ -392,10 +446,6 @@
             const notificationBell = document.getElementById('notification-bell');
             const notificationBadge = document.getElementById('notification-badge');
             const notificationDropdown = document.getElementById('notification-dropdown');
-            const isRecurringCheckbox = document.getElementById('is-recurring');
-            const recurringOptions = document.getElementById('recurring-options');
-            const isPermanentCheckbox = document.getElementById('is-permanent');
-            const recurrenceCountInput = document.getElementById('recurrence-count');
             const confirmDeleteModal = document.getElementById('confirm-delete-modal');
             const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
             const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
@@ -411,6 +461,11 @@
             const newTagNameInput = document.getElementById('new-tag-name');
             const tagsListContainer = document.getElementById('tags-list');
             const deleteConfirmText = document.getElementById('delete-confirm-text');
+            const paymentsView = document.getElementById('payments-view');
+            const loansView = document.getElementById('loans-view');
+            const loanModal = document.getElementById('loan-modal');
+            const loanForm = document.getElementById('loan-form');
+            const cancelLoanBtn = document.getElementById('cancel-loan-btn');
             
             // Resumo
             const totalValueEl = document.getElementById('total-value');
@@ -424,7 +479,7 @@
             let currentModule = 'DASHBOARD';
             let allPayments = []; 
             let allTags = [];
-            const moduleNames = ["DESPESAS ADM MENSAIS", "FOLHA DE PAGAMENTO", "IMPOSTOS", "CONTAS AVULSAS"];
+            const moduleNames = ["DESPESAS ADM MENSAIS", "FOLHA DE PAGAMENTO", "IMPOSTOS", "CONTAS AVULSAS", "EMPRESTIMOS"];
             let modulesChartInstance = null;
             let statusChartInstance = null;
             let tagsChartInstance = null;
@@ -478,7 +533,6 @@
                     for (let i = 0; i < str.length; i++) {
                         hash = str.charCodeAt(i) + ((hash << 5) - hash);
                     }
-                    // Garante cores mais claras e com mais saturação
                     const h = hash % 360;
                     return `hsla(${h}, 70%, 70%, 1)`;
                 }
@@ -491,7 +545,7 @@
                     // Aplicar filtros
                     if (currentModule === 'CONTAS A PAGAR') {
                         query = query.eq('status', 'Pendente');
-                    } else if (currentModule !== 'DASHBOARD') {
+                    } else if (currentModule !== 'DASHBOARD' && currentModule !== 'EMPRESTIMOS') {
                         query = query.eq('module', currentModule);
                     }
 
@@ -554,17 +608,21 @@
                 }
 
                 // --- LÓGICA DO MODAL ---
-                const openModal = () => paymentModal.style.display = 'flex';
-                const closeModal = () => {
-                    paymentModal.style.display = 'none';
-                    paymentForm.reset();
-                    recurringOptions.classList.add('hidden');
-                    recurrenceCountInput.disabled = false;
-                    paymentIdInput.value = '';
-                    modalTitle.textContent = 'Adicionar Novo Pagamento';
+                const openModal = (type) => {
+                    if (type === 'payment') paymentModal.style.display = 'flex';
+                    else if (type === 'loan') loanModal.style.display = 'flex';
                 };
-                isRecurringCheckbox.addEventListener('change', () => recurringOptions.classList.toggle('hidden', !isRecurringCheckbox.checked));
-                isPermanentCheckbox.addEventListener('change', () => recurrenceCountInput.disabled = isPermanentCheckbox.checked);
+                const closeModal = (type) => {
+                    if (type === 'payment') {
+                        paymentModal.style.display = 'none';
+                        paymentForm.reset();
+                        paymentIdInput.value = '';
+                        modalTitle.textContent = 'Adicionar Novo Pagamento';
+                    } else if (type === 'loan') {
+                        loanModal.style.display = 'none';
+                        loanForm.reset();
+                    }
+                };
                 
                 // --- LÓGICA DE FILTROS ---
                 const populateYearFilter = async () => {
@@ -601,9 +659,12 @@
                     monthFilter.disabled = selectedYear === 'all';
                     
                     if(currentModule === 'DASHBOARD') {
-                        updateUI(); // Dashboard fetches all data
-                    } else {
-                        fetchPaginatedPayments(); // Modules fetch paginated data
+                        updateUI();
+                    } else if (currentModule === 'EMPRESTIMOS') {
+                        updateUI();
+                    }
+                    else {
+                        fetchPaginatedPayments();
                     }
                 };
 
@@ -655,10 +716,20 @@
                         moduleContent.style.display = 'none';
                         const dashboardData = await fetchAllFilteredDataForDashboard();
                         updateDashboard(dashboardData);
+                    } else if (currentModule === 'EMPRESTIMOS') {
+                        paginationControls.style.display = 'none';
+                        chartsSection.style.display = 'none';
+                        moduleContent.style.display = 'block';
+                        paymentsView.style.display = 'none';
+                        loansView.style.display = 'grid';
+                        addPaymentContainer.style.display = 'block';
+                        renderLoans();
                     } else {
                         paginationControls.style.display = 'flex';
                         chartsSection.style.display = 'none';
                         moduleContent.style.display = 'block';
+                        paymentsView.style.display = 'block';
+                        loansView.style.display = 'none';
                         addPaymentContainer.style.display = currentModule === 'CONTAS A PAGAR' ? 'none' : 'block';
                         renderTable(allPayments);
                         updateModuleSummary(allPayments);
@@ -710,7 +781,7 @@
                         datasets: [{
                             label: 'Custo Total',
                             data: moduleNames.map(module => payments.filter(p => p.module === module).reduce((sum, p) => sum + p.value, 0)),
-                            backgroundColor: ['#06b6d4', '#0891b2', '#0e7490', '#155e75'],
+                            backgroundColor: ['#06b6d4', '#0891b2', '#0e7490', '#155e75', '#164e63'],
                             borderColor: '#1e293b', borderWidth: 2, borderRadius: 5,
                         }]
                     };
@@ -814,6 +885,67 @@
                     addTableEventListeners();
                 };
 
+                const renderLoans = async () => {
+                    showLoader();
+                    const { data: loans, error: loansError } = await _supabase.from('loans').select('*').order('created_at');
+                    const { data: payments, error: paymentsError } = await _supabase.from('payments').select('loan_id, status');
+                    hideLoader();
+
+                    if (loansError || paymentsError) {
+                        console.error('Erro ao buscar empréstimos ou pagamentos:', loansError || paymentsError);
+                        return;
+                    }
+
+                    loansView.innerHTML = '';
+                    if (loans.length === 0) {
+                        loansView.innerHTML = `<div class="lg:col-span-3 text-center p-12 text-slate-400">
+                            <i class="fas fa-landmark fa-3x mb-4"></i>
+                            <p class="font-semibold">Nenhum empréstimo registado.</p>
+                        </div>`;
+                        return;
+                    }
+
+                    loans.forEach(loan => {
+                        const relatedPayments = payments.filter(p => p.loan_id === loan.id);
+                        const paidCount = relatedPayments.filter(p => p.status === 'Pago').length;
+                        const progress = (paidCount / loan.installments) * 100;
+                        const totalFinanced = loan.total_amount + (loan.valor_iof_rs || 0) + (loan.valor_tac_rs || 0);
+                        const installmentValue = totalFinanced / loan.installments;
+                        const remainingAmount = (loan.installments - paidCount) * installmentValue;
+
+                        const card = document.createElement('div');
+                        card.className = 'bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-lg flex flex-col justify-between';
+                        card.innerHTML = `
+                            <div>
+                                <div class="flex justify-between items-start">
+                                    <h3 class="text-xl font-bold text-white mb-2">${loan.description}</h3>
+                                    <div class="flex items-center gap-2">
+                                        <span class="status-badge ${loan.status === 'Quitado' ? 'status-pago' : 'status-pendente'}">${loan.status}</span>
+                                        <button data-id="${loan.id}" class="delete-loan-btn text-red-500 hover:text-red-400 text-lg"><i class="fas fa-trash-alt"></i></button>
+                                    </div>
+                                </div>
+                                <p class="text-slate-400">Valor Total: ${formatCurrency(loan.total_amount)}</p>
+                                <p class="text-slate-400">Saldo Devedor: ${formatCurrency(remainingAmount)}</p>
+                                <div class="text-xs text-slate-500 mt-2">
+                                    <span>CET: ${loan.cet_am || 'N/A'}% a.m.</span> | 
+                                    <span>Juros: ${loan.juros_nominais_am || 'N/A'}% a.m.</span>
+                                </div>
+                            </div>
+                            <div class="mt-4">
+                                <div class="flex justify-between items-center mb-1 text-sm">
+                                    <span class="text-slate-300">Progresso</span>
+                                    <span>${paidCount} / ${loan.installments} Parcelas</span>
+                                </div>
+                                <div class="w-full bg-slate-700 rounded-full h-2.5">
+                                    <div class="bg-cyan-500 h-2.5 rounded-full" style="width: ${progress}%"></div>
+                                </div>
+                            </div>
+                        `;
+                        loansView.appendChild(card);
+                    });
+                    addLoanEventListeners();
+                };
+
                 const updateActiveTab = () => {
                     document.querySelectorAll('.tab-btn').forEach(tab => tab.classList.toggle('active', tab.dataset.module === currentModule));
                 };
@@ -854,7 +986,13 @@
                         doc.addImage(statusChartImg, 'PNG', 14, 20, 180, 90);
                         doc.save(`Relatorio_Dashboard_PONTAZO_BANK_${todayDate}.pdf`);
                     } else {
-                        const { data } = await _supabase.from('payments').select('*').eq('module', currentModule); // Fetch all for PDF
+                        let query = _supabase.from('payments').select('*');
+                        if (currentModule === 'CONTAS A PAGAR') {
+                            query = query.eq('status', 'Pendente');
+                        } else {
+                            query = query.eq('module', currentModule);
+                        }
+                        const { data } = await query;
                         const total = data.reduce((sum, p) => sum + p.value, 0);
                         doc.text(`Relatório de ${currentModule}`, 14, 30);
                         doc.text(`Período: ${period}`, 14, 37);
@@ -891,6 +1029,8 @@
                     allTags.forEach(tag => {
                         tagsSelect.add(new Option(tag.name, tag.name));
                     });
+                    document.getElementById('loan-tag').innerHTML = '<option value="">Nenhuma</option>';
+                    allTags.forEach(tag => document.getElementById('loan-tag').add(new Option(tag.name, tag.name)));
                 };
 
                 const renderTagsInManageModal = () => {
@@ -918,8 +1058,6 @@
                     showLoader();
                     const formData = new FormData(paymentForm);
                     const id = formData.get('payment-id');
-                    const isRecurring = formData.get('is-recurring') === 'on';
-                    const isPermanent = formData.get('is-permanent') === 'on';
                     const attachmentFile = document.getElementById('attachment').files[0];
                     let attachmentUrl = id ? allPayments.find(p => p.id == id).attachment : null;
 
@@ -934,36 +1072,21 @@
                     const rawValue = formData.get('value').toString();
                     const sanitizedValue = parseCurrency(rawValue);
 
-                    const basePaymentData = {
+                    const paymentData = {
                         description: formData.get('description'), value: sanitizedValue, paymentMethod: formData.get('payment-method'),
                         module: formData.get('module'), priority: formData.get('priority'), status: formData.get('status'), attachment: attachmentUrl,
-                        tag: formData.get('tag') || null
+                        tag: formData.get('tag') || null, date: formData.get('date'), dueDate: formData.get('dueDate')
                     };
-
-                    if (id && !isRecurring) {
-                        const { error } = await _supabase.from('payments').update({ ...basePaymentData, date: formData.get('date'), dueDate: formData.get('dueDate') }).eq('id', id);
+                    
+                    if (id) {
+                        const { error } = await _supabase.from('payments').update(paymentData).eq('id', id);
                         if (error) console.error("Erro ao atualizar:", error);
-                    } else if (isRecurring) {
-                        const recurrenceCount = isPermanent ? 120 : parseInt(formData.get('recurrence-count'), 10);
-                        let currentLaunchDate = new Date(formData.get('date') + 'T00:00:00');
-                        let currentDueDate = new Date(formData.get('dueDate') + 'T00:00:00');
-                        const paymentsToInsert = [];
-                        for (let i = 0; i < recurrenceCount; i++) {
-                            paymentsToInsert.push({
-                                ...basePaymentData, description: `${basePaymentData.description} (${i + 1}/${recurrenceCount})`,
-                                date: currentLaunchDate.toISOString().slice(0, 10), dueDate: currentDueDate.toISOString().slice(0, 10),
-                            });
-                            currentLaunchDate.setMonth(currentLaunchDate.getMonth() + 1);
-                            currentDueDate.setMonth(currentDueDate.getMonth() + 1);
-                        }
-                        const { error } = await _supabase.from('payments').insert(paymentsToInsert);
-                        if (error) console.error("Erro ao inserir recorrentes:", error);
                     } else {
-                         const { error } = await _supabase.from('payments').insert([{ ...basePaymentData, date: formData.get('date'), dueDate: formData.get('dueDate') }]);
+                         const { error } = await _supabase.from('payments').insert([paymentData]);
                          if (error) console.error("Erro ao inserir:", error);
                     }
                     
-                    closeModal();
+                    closeModal('payment');
                     fetchPaginatedPayments();
                 });
                 
@@ -991,9 +1114,7 @@
                                 document.getElementById('priority').value = payment.priority;
                                 document.getElementById('status').value = payment.status;
                                 document.getElementById('tags-select').value = payment.tag || '';
-                                document.getElementById('is-recurring').checked = false;
-                                recurringOptions.classList.add('hidden');
-                                openModal();
+                                openModal('payment');
                             }
                         });
                     });
@@ -1017,19 +1138,42 @@
                     });
                 };
 
+                const addLoanEventListeners = () => {
+                    document.querySelectorAll('.delete-loan-btn').forEach(btn => {
+                        btn.addEventListener('click', (e) => {
+                            itemToDelete = { id: parseInt(e.currentTarget.dataset.id), type: 'loan' };
+                            deleteConfirmText.textContent = 'Tem a certeza que deseja excluir este empréstimo e todas as suas parcelas? Esta ação não pode ser desfeita.';
+                            confirmDeleteModal.style.display = 'flex';
+                        });
+                    });
+                };
+
+                addBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    addDropdown.classList.toggle('hidden');
+                });
+                window.addEventListener('click', () => addDropdown.classList.add('hidden'));
+
                 addPaymentBtn.addEventListener('click', () => {
                     modalTitle.textContent = 'Adicionar Novo Pagamento';
                     const formModuleSelect = document.getElementById('module');
-                    if (currentModule !== 'DASHBOARD') formModuleSelect.value = currentModule;
-                    else formModuleSelect.value = moduleNames[0];
+                    if (currentModule !== 'DASHBOARD' && currentModule !== 'CONTAS A PAGAR' && currentModule !== 'EMPRESTIMOS') {
+                        formModuleSelect.value = currentModule;
+                    } else {
+                        formModuleSelect.value = moduleNames[0];
+                    }
                     const today = new Date().toISOString().split('T')[0];
                     document.getElementById('date').value = today;
                     document.getElementById('dueDate').value = today;
-                    openModal();
+                    openModal('payment');
                 });
                 
-                cancelBtn.addEventListener('click', closeModal);
-                paymentModal.addEventListener('click', (e) => { if (e.target === paymentModal) closeModal(); });
+                addLoanBtn.addEventListener('click', () => openModal('loan'));
+                cancelLoanBtn.addEventListener('click', () => closeModal('loan'));
+                
+                cancelBtn.addEventListener('click', () => closeModal('payment'));
+                paymentModal.addEventListener('click', (e) => { if (e.target === paymentModal) closeModal('payment'); });
+                loanModal.addEventListener('click', (e) => { if (e.target === loanModal) closeModal('loan'); });
                 
                 // Listeners do Modal de Exclusão
                 cancelDeleteBtn.addEventListener('click', () => {
@@ -1043,15 +1187,20 @@
                         if (itemToDelete.type === 'payment') {
                             const { error } = await _supabase.from('payments').delete().eq('id', itemToDelete.id);
                             if (error) console.error("Erro ao excluir pagamento:", error);
-                            fetchPaginatedPayments();
                         } else if (itemToDelete.type === 'tag') {
                             const { error } = await _supabase.from('tags').delete().eq('id', itemToDelete.id);
                             if (error) console.error("Erro ao excluir tag:", error);
                             fetchTags();
+                        } else if (itemToDelete.type === 'loan') {
+                            const { error: paymentsError } = await _supabase.from('payments').delete().eq('loan_id', itemToDelete.id);
+                            if (paymentsError) console.error("Erro ao excluir parcelas:", paymentsError);
+                            const { error: loanError } = await _supabase.from('loans').delete().eq('id', itemToDelete.id);
+                            if (loanError) console.error("Erro ao excluir empréstimo:", loanError);
                         }
                         
                         confirmDeleteModal.style.display = 'none';
                         itemToDelete = { id: null, type: null };
+                        applyFilters();
                     }
                 });
 
@@ -1071,6 +1220,65 @@
                             fetchTags();
                         }
                     }
+                });
+
+                loanForm.addEventListener('submit', async(e) => {
+                    e.preventDefault();
+                    showLoader();
+                    const description = document.getElementById('loan-description').value;
+                    const totalAmount = parseCurrency(document.getElementById('loan-amount').value);
+                    const installments = parseInt(document.getElementById('loan-installments').value);
+                    const startDate = document.getElementById('loan-start-date').value;
+                    const tag = document.getElementById('loan-tag').value || null;
+                    const gracePeriod = parseInt(document.getElementById('loan-grace-period').value) || 0;
+                    const iof = parseCurrency(document.getElementById('loan-iof').value) || 0;
+                    const tac = parseCurrency(document.getElementById('loan-tac').value) || 0;
+                    const cet = parseCurrency(document.getElementById('loan-cet').value) || 0;
+                    const nominalInterest = parseCurrency(document.getElementById('loan-nominal-interest').value) || 0;
+                    const otherCharges = parseCurrency(document.getElementById('loan-other-charges').value) || 0;
+
+                    const { data: loanData, error: loanError } = await _supabase
+                        .from('loans')
+                        .insert([{ 
+                            description, total_amount: totalAmount, installments, start_date: startDate, status: 'Ativo',
+                            prazo_pagamento_meses: installments, carencia_meses: gracePeriod, valor_iof_rs: iof,
+                            valor_tac_rs: tac, cet_am: cet, juros_nominais_am: nominalInterest, outros_encargos_am: otherCharges
+                        }])
+                        .select()
+                        .single();
+
+                    if (loanError) {
+                        console.error('Erro ao criar empréstimo:', loanError);
+                        hideLoader();
+                        return;
+                    }
+
+                    const totalFinanced = totalAmount + iof + tac;
+                    const installmentValue = totalFinanced / installments;
+                    const paymentsToInsert = [];
+                    let currentDueDate = new Date(startDate + 'T00:00:00');
+                    currentDueDate.setMonth(currentDueDate.getMonth() + gracePeriod);
+
+                    for (let i = 0; i < installments; i++) {
+                        paymentsToInsert.push({
+                            description: `${description} - Parcela ${i + 1}/${installments}`,
+                            value: installmentValue,
+                            date: new Date().toISOString().slice(0,10),
+                            dueDate: currentDueDate.toISOString().slice(0,10),
+                            status: 'Pendente',
+                            module: 'EMPRESTIMOS',
+                            priority: 'Alta',
+                            loan_id: loanData.id,
+                            tag: tag
+                        });
+                        currentDueDate.setMonth(currentDueDate.getMonth() + 1);
+                    }
+
+                    const { error: paymentsError } = await _supabase.from('payments').insert(paymentsToInsert);
+                    if(paymentsError) console.error('Erro ao criar parcelas:', paymentsError);
+
+                    closeModal('loan');
+                    applyFilters();
                 });
 
                 [yearFilter, monthFilter, searchInput, priorityFilter, paymentMethodFilter, tagFilter].forEach(el => {
