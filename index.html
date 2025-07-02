@@ -725,7 +725,7 @@
                     const ctx = document.getElementById('tags-chart').getContext('2d');
                     const tagsData = {};
                     payments.forEach(p => {
-                        if (p.tags) {
+                        if (Array.isArray(p.tags)) {
                             p.tags.forEach(tag => {
                                 if (!tagsData[tag]) tagsData[tag] = 0;
                                 tagsData[tag] += p.value;
@@ -776,9 +776,10 @@
                         const isOverdue = p.status === 'Pendente' && new Date(p.dueDate + 'T00:00:00') < today;
                         const row = document.createElement('tr');
                         row.className = 'hover:bg-slate-700/50 transition-colors';
+                        const tagsHtml = Array.isArray(p.tags) ? p.tags.map(tag => `<span class="tag-badge">${tag}</span>`).join('') : '';
                         row.innerHTML = `
                             <td class="p-4 font-medium text-white">${p.description} ${p.attachment ? `<a href="${p.attachment}" target="_blank" class="text-cyan-400 hover:text-cyan-300" title="Ver Anexo"><i class="fas fa-paperclip ml-2"></i></a>` : ''}</td>
-                            <td class="p-4">${(p.tags || []).map(tag => `<span class="tag-badge">${tag}</span>`).join('')}</td>
+                            <td class="p-4">${tagsHtml}</td>
                             <td class="p-4 font-medium text-white whitespace-nowrap">${formatCurrency(p.value)}</td>
                             <td class="p-4 whitespace-nowrap ${isOverdue ? 'text-overdue' : ''}">${formatDate(p.dueDate)}</td>
                             <td class="p-4 text-center"><span class="priority-badge priority-${p.priority.toLowerCase()}">${p.priority}</span></td>
@@ -987,9 +988,9 @@
                                 document.getElementById('is-recurring').checked = false;
                                 recurringOptions.classList.add('hidden');
                                 
-                                // Marcar as checkboxes das tags existentes
+                                const paymentTags = Array.isArray(payment.tags) ? payment.tags : [];
                                 tagsCheckboxContainer.querySelectorAll('input').forEach(cb => {
-                                    cb.checked = (payment.tags || []).includes(cb.value);
+                                    cb.checked = paymentTags.includes(cb.value);
                                 });
 
                                 openModal();
