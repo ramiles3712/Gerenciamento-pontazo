@@ -102,6 +102,7 @@
                 <nav id="module-tabs" class="flex -mb-px overflow-x-auto">
                     <button class="tab-btn" data-module="DASHBOARD">Dashboard</button>
                     <button class="tab-btn" data-module="CONTAS A PAGAR">Contas a Pagar</button>
+                    <button class="tab-btn" data-module="PAGO">Pago</button>
                     <button class="tab-btn" data-module="EMPRESTIMOS">Empréstimos</button>
                     <button class="tab-btn" data-module="DESPESAS ADM MENSAIS">Despesas ADM</button>
                     <button class="tab-btn" data-module="FOLHA DE PAGAMENTO">Folha de Pagamento</button>
@@ -610,7 +611,9 @@
                     showLoader();
                     let query = _supabase.from('payments').select('*', { count: 'exact' }).eq('company_id', currentCompanyId);
 
-                    if (currentModule === 'CONTAS A PAGAR') {
+                    if (currentModule === 'PAGO') {
+                        query = query.eq('status', 'Pago');
+                    } else if (currentModule === 'CONTAS A PAGAR') {
                         query = query.eq('status', 'Pendente');
                     } else if (currentModule !== 'DASHBOARD' && currentModule !== 'EMPRESTIMOS') {
                         query = query.eq('module', currentModule);
@@ -802,7 +805,7 @@
                         moduleContent.style.display = 'block';
                         paymentsView.style.display = 'block';
                         loansView.style.display = 'none';
-                        addPaymentContainer.style.display = currentModule === 'CONTAS A PAGAR' ? 'none' : 'block';
+                        addPaymentContainer.style.display = (currentModule === 'CONTAS A PAGAR' || currentModule === 'PAGO') ? 'none' : 'block';
                         renderTable(allPayments);
                         updateModuleSummary(allPayments);
                         updatePaginationControls();
@@ -1084,6 +1087,8 @@
                         let query = _supabase.from('payments').select('*').eq('company_id', currentCompanyId);
                         if (currentModule === 'CONTAS A PAGAR') {
                             query = query.eq('status', 'Pendente');
+                        } else if (currentModule === 'PAGO') {
+                            query = query.eq('status', 'Pago');
                         } else {
                             query = query.eq('module', currentModule);
                         }
@@ -1348,7 +1353,7 @@
                 addPaymentBtn.addEventListener('click', () => {
                     modalTitle.textContent = 'Adicionar Novo Pagamento';
                     const formModuleSelect = document.getElementById('module');
-                    if (currentModule !== 'DASHBOARD' && currentModule !== 'CONTAS A PAGAR' && currentModule !== 'EMPRESTIMOS') {
+                    if (currentModule !== 'DASHBOARD' && currentModule !== 'CONTAS A PAGAR' && currentModule !== 'EMPRESTIMOS' && currentModule !== 'PAGO') {
                         formModuleSelect.value = currentModule;
                     } else {
                         formModuleSelect.value = moduleNames[0];
