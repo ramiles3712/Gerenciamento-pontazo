@@ -38,7 +38,8 @@
         .filter-select, .search-input { background-color: #1e293b; border: 1px solid #334155; color: #e2e8f0; border-radius: 0.5rem; padding: 0.5rem 1rem; }
         .notification-bell { position: relative; cursor: pointer; }
         .notification-badge { position: absolute; top: -5px; right: -8px; background-color: #ef4444; color: white; border-radius: 50%; width: 20px; height: 20px; font-size: 12px; display: flex; align-items: center; justify-content: center; }
-        .notification-dropdown { display: none; position: absolute; top: 100%; right: 0; background-color: #1e293b; border: 1px solid #334155; border-radius: 0.5rem; width: 300px; max-height: 400px; overflow-y: auto; z-index: 50; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); }
+        /* CORREÇÃO: Removido 'display: none' para permitir que a classe 'hidden' do Tailwind controle a visibilidade */
+        .notification-dropdown { position: absolute; top: 100%; right: 0; background-color: #1e293b; border: 1px solid #334155; border-radius: 0.5rem; width: 300px; max-height: 400px; overflow-y: auto; z-index: 50; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); }
         .loading-overlay { display: none; position: fixed; inset: 0; background-color: rgba(15, 23, 42, 0.8); z-index: 100; justify-content: center; align-items: center; backdrop-filter: blur(4px); }
         .loader { border: 5px solid #334155; border-top: 5px solid #22d3ee; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
@@ -92,8 +93,12 @@
                     <div id="notification-bell" class="notification-bell text-2xl text-slate-400 hover:text-white">
                         <i class="fas fa-bell"></i>
                         <span id="notification-badge" class="notification-badge hidden">0</span>
-                        <div id="notification-dropdown" class="notification-dropdown text-sm"></div>
+                        <!-- CORREÇÃO: Adicionada a classe 'hidden' para que o JS possa controlar a visibilidade -->
+                        <div id="notification-dropdown" class="notification-dropdown text-sm hidden"></div>
                     </div>
+                    <button id="logout-btn" class="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2">
+                        <i class="fas fa-sign-out-alt"></i> Sair
+                    </button>
                 </div>
             </header>
 
@@ -108,6 +113,7 @@
                     <button class="tab-btn" data-module="FOLHA DE PAGAMENTO">Folha de Pagamento</button>
                     <button class="tab-btn" data-module="IMPOSTOS">Impostos</button>
                     <button class="tab-btn" data-module="CONTAS AVULSAS">Contas Avulsas</button>
+                    <button id="admin-tab-btn" class="tab-btn hidden" data-module="ADMIN">Admin</button>
                 </nav>
             </div>
             
@@ -127,6 +133,9 @@
                 </div>
                  <button id="manage-tags-btn" class="bg-slate-600 hover:bg-slate-500 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2">
                     <i class="fas fa-tags"></i> Gerir Tags
+                </button>
+                <button id="export-csv-btn" class="bg-green-800 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-transform transform hover:scale-105 flex items-center gap-2">
+                    <i class="fas fa-file-csv"></i> CSV
                 </button>
                 <button id="export-pdf-btn" class="bg-red-800 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-transform transform hover:scale-105 flex items-center gap-2">
                     <i class="fas fa-file-pdf"></i> PDF
@@ -232,6 +241,56 @@
                         <!-- Cards de Empréstimos serão inseridos aqui -->
                     </div>
                 </div>
+
+                 <!-- Painel de Administração -->
+                <div id="admin-panel" class="hidden">
+                    <h2 class="text-3xl font-bold text-white mb-6">Painel de Administração</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        <!-- Gerir Empresas -->
+                        <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700">
+                            <h3 class="text-xl font-bold text-cyan-400 mb-4">Gerir Empresas</h3>
+                            <form id="add-company-form" class="flex gap-2 mb-4">
+                                <input type="text" id="new-company-name" placeholder="Nome da nova empresa" class="w-full bg-slate-700 border border-slate-600 text-white rounded-lg p-3" required>
+                                <button type="submit" class="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-lg">Adicionar</button>
+                            </form>
+                            <div id="company-list" class="space-y-2"></div>
+                        </div>
+
+                        <!-- Gerir Utilizadores Estáticos -->
+                        <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700">
+                            <h3 class="text-xl font-bold text-cyan-400 mb-4">Gerir Utilizadores</h3>
+                            <form id="add-user-form" class="space-y-4 mb-4">
+                                <input type="text" id="new-user-username" placeholder="Nome de utilizador" class="w-full bg-slate-700 border border-slate-600 text-white rounded-lg p-3" required>
+                                <input type="password" id="new-user-password" placeholder="Senha" class="w-full bg-slate-700 border border-slate-600 text-white rounded-lg p-3" required>
+                                <button type="submit" class="w-full bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-lg">Criar Utilizador</button>
+                            </form>
+                            <div id="user-list" class="space-y-2"></div>
+                        </div>
+
+                        <!-- Log de Atividades -->
+                        <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700">
+                            <h3 class="text-xl font-bold text-cyan-400 mb-4">Log de Atividades</h3>
+                            <div class="flex gap-2 mb-4">
+                                <input type="date" id="log-date-filter" class="filter-select w-full">
+                                <button id="view-log-btn" class="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-lg w-full">Ver Log</button>
+                            </div>
+                            <p class="text-sm text-slate-400">Veja o histórico de ações importantes realizadas no sistema.</p>
+                        </div>
+
+                        <!-- Backup e Restauro -->
+                        <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700">
+                            <h3 class="text-xl font-bold text-cyan-400 mb-4">Backup e Restauro</h3>
+                            <button id="generate-backup-btn" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-lg mb-4">Gerar Backup da Empresa</button>
+                            <div class="text-center">
+                                <label for="restore-backup-input" class="w-full bg-gray-600 cursor-not-allowed text-white font-bold py-2 px-4 rounded-lg opacity-50">
+                                    Restaurar Backup
+                                </label>
+                                <input type="file" id="restore-backup-input" class="hidden" disabled>
+                                 <p class="text-xs text-slate-400 mt-2">A funcionalidade de restauro estará disponível em breve.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </main>
 
             <footer class="text-center py-6 mt-10 border-t border-slate-800">
@@ -239,6 +298,10 @@
                     CRIADO POR: RAMILES SILVA – 
                     <a href="https://www.ramilesdev.com" target="_blank" rel="noopener noreferrer" class="font-medium text-cyan-400 hover:text-cyan-300 transition-colors">
                         www.ramilesdev.com
+                    </a>
+                    <span class="mx-2">|</span>
+                    <a href="mailto:ramires3712@gmail.com" class="font-medium text-cyan-400 hover:text-cyan-300 transition-colors">
+                        ramires3712@gmail.com
                     </a>
                 </p>
             </footer>
@@ -447,741 +510,1349 @@
         </div>
     </div>
 
+    <!-- Modal de Gestão de Permissões de Utilizador -->
+    <div id="user-permissions-modal" class="modal-backdrop">
+        <div class="fixed inset-0 flex items-center justify-center z-50 p-4">
+            <div class="modal-content bg-slate-800 w-full max-w-4xl mx-auto rounded-2xl shadow-2xl border border-slate-700">
+                <form id="user-permissions-form" class="p-8">
+                    <h2 id="user-permissions-title" class="text-2xl font-bold mb-6 text-white">Gerir Permissões</h2>
+                    <input type="hidden" id="permission-username">
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                        <div class="md:col-span-1">
+                            <h3 class="text-lg font-semibold text-cyan-400 mb-4 border-b border-slate-700 pb-2">Empresas Acessíveis</h3>
+                            <div id="permissions-company-list" class="space-y-3"></div>
+                        </div>
+                        <div class="md:col-span-2">
+                             <h3 class="text-lg font-semibold text-cyan-400 mb-4 border-b border-slate-700 pb-2">Ações Permitidas</h3>
+                            <div id="permissions-action-list" class="space-y-4"></div>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end gap-4 pt-8 mt-8 border-t border-slate-700">
+                        <button type="button" id="cancel-permissions-btn" class="bg-slate-600 hover:bg-slate-500 text-white font-bold py-2 px-6 rounded-lg transition">Cancelar</button>
+                        <button type="submit" class="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-6 rounded-lg transition">Salvar Permissões</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div id="whatsapp-notifications-modal" class="modal-backdrop">
+        <div class="fixed inset-0 flex items-center justify-center z-50 p-4">
+            <div class="modal-content bg-slate-800 w-full max-w-lg mx-auto rounded-2xl shadow-2xl border border-slate-700">
+                <form id="whatsapp-notifications-form" class="p-8">
+                    <h2 id="whatsapp-notifications-title" class="text-2xl font-bold mb-6 text-white">Configurar Notificações do WhatsApp</h2>
+                    <input type="hidden" id="whatsapp-username">
+                    
+                    <div class="space-y-6">
+                        <div>
+                            <label for="whatsapp-number" class="block text-sm font-medium text-slate-300 mb-2">Número de WhatsApp</label>
+                            <input type="text" id="whatsapp-number" placeholder="Ex: 5511912345678" class="w-full bg-slate-700 border border-slate-600 text-white rounded-lg p-3 focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                            <p class="text-xs text-slate-400 mt-1">Inclua o código do país (ex: 55 para o Brasil).</p>
+                        </div>
+
+                        <div>
+                            <h3 class="text-md font-semibold text-slate-300 mb-3">Tipos de Alerta</h3>
+                            <div class="space-y-3">
+                                <label for="whatsapp-notify-upcoming" class="flex items-center space-x-3 text-slate-300 cursor-pointer">
+                                    <input type="checkbox" id="whatsapp-notify-upcoming" value="upcoming" class="w-4 h-4 bg-slate-700 border-slate-600 rounded text-cyan-500 focus:ring-cyan-500">
+                                    <span>Avisar sobre contas a vencer</span>
+                                </label>
+                                <label for="whatsapp-notify-overdue" class="flex items-center space-x-3 text-slate-300 cursor-pointer">
+                                    <input type="checkbox" id="whatsapp-notify-overdue" value="overdue" class="w-4 h-4 bg-slate-700 border-slate-600 rounded text-cyan-500 focus:ring-cyan-500">
+                                    <span>Avisar sobre contas vencidas</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end gap-4 pt-8 mt-8 border-t border-slate-700">
+                        <button type="button" id="cancel-whatsapp-notifications-btn" class="bg-slate-600 hover:bg-slate-500 text-white font-bold py-2 px-6 rounded-lg transition">Cancelar</button>
+                        <button type="submit" class="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-6 rounded-lg transition">Salvar Configurações</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- NEW: Modal for Audit Log -->
+    <div id="audit-log-modal" class="modal-backdrop">
+        <div class="fixed inset-0 flex items-center justify-center z-50 p-4">
+            <div class="modal-content bg-slate-800 w-full max-w-4xl mx-auto rounded-2xl shadow-2xl border border-slate-700">
+                <div class="p-8">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold text-white">Log de Atividades</h2>
+                        <button id="close-audit-log-btn" class="text-slate-400 hover:text-white">&times;</button>
+                    </div>
+                    <div id="audit-log-content" class="max-h-[60vh] overflow-y-auto pr-4">
+                        <!-- Log entries will be populated here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
     <script>
+        // --- INICIALIZAÇÃO DA APLICAÇÃO ---
         document.addEventListener('DOMContentLoaded', () => {
-            // --- ELEMENTOS DA UI ---
-            const loadingOverlay = document.getElementById('loading-overlay');
-            const loginScreen = document.getElementById('login-screen');
-            const appContainer = document.getElementById('app-container');
-            const loginForm = document.getElementById('login-form');
-            const loginError = document.getElementById('login-error');
-            const companySelector = document.getElementById('company-selector');
+            const app = new App();
+            app.init();
+        });
 
-            const exportPdfBtn = document.getElementById('export-pdf-btn');
-            const addBtn = document.getElementById('add-btn');
-            const addDropdown = document.getElementById('add-dropdown');
-            const addPaymentBtn = document.getElementById('add-payment-btn');
-            const addLoanBtn = document.getElementById('add-loan-btn');
-            const paymentModal = document.getElementById('payment-modal');
-            const paymentForm = document.getElementById('payment-form');
-            const cancelBtn = document.getElementById('cancel-btn');
-            const tableBody = document.getElementById('payment-table-body');
-            const modalTitle = document.getElementById('modal-title');
-            const paymentIdInput = document.getElementById('payment-id');
-            const emptyState = document.getElementById('empty-state');
-            const moduleTabsContainer = document.getElementById('module-tabs');
-            const chartsSection = document.getElementById('charts-section');
-            const moduleContent = document.getElementById('module-content');
-            const yearFilter = document.getElementById('year-filter');
-            const monthFilter = document.getElementById('month-filter');
-            const searchInput = document.getElementById('search-input');
-            const priorityFilter = document.getElementById('priority-filter');
-            const paymentMethodFilter = document.getElementById('payment-method-filter');
-            const tagFilter = document.getElementById('tag-filter');
-            const notificationBell = document.getElementById('notification-bell');
-            const notificationBadge = document.getElementById('notification-badge');
-            const notificationDropdown = document.getElementById('notification-dropdown');
-            const confirmModal = document.getElementById('confirm-modal');
-            const confirmTitle = document.getElementById('confirm-title');
-            const confirmText = document.getElementById('confirm-text');
-            const confirmBtn = document.getElementById('confirm-btn');
-            const cancelConfirmBtn = document.getElementById('cancel-confirm-btn');
-            const paginationControls = document.getElementById('pagination-controls');
-            const prevPageBtn = document.getElementById('prev-page-btn');
-            const nextPageBtn = document.getElementById('next-page-btn');
-            const pageInfo = document.getElementById('page-info');
-            const tagsSelect = document.getElementById('tags-select');
-            const manageTagsBtn = document.getElementById('manage-tags-btn');
-            const manageTagsModal = document.getElementById('manage-tags-modal');
-            const closeTagsModalBtn = document.getElementById('close-tags-modal-btn');
-            const addTagForm = document.getElementById('add-tag-form');
-            const newTagNameInput = document.getElementById('new-tag-name');
-            const tagsListContainer = document.getElementById('tags-list');
-            const paymentsView = document.getElementById('payments-view');
-            const loansView = document.getElementById('loans-view');
-            const loanModal = document.getElementById('loan-modal');
-            const loanForm = document.getElementById('loan-form');
-            const cancelLoanBtn = document.getElementById('cancel-loan-btn');
-            const recurringPaymentSection = document.getElementById('recurring-payment-section');
-            const recurringPaymentCheckbox = document.getElementById('recurring-payment-checkbox');
-            const installmentsContainer = document.getElementById('installments-container');
-            const installmentsInput = document.getElementById('installments');
-            
-            // Resumo
-            const totalValueEl = document.getElementById('total-value');
-            const pendingCountEl = document.getElementById('pending-count');
-            const paidCountEl = document.getElementById('paid-count');
+        // --- CLASSE PRINCIPAL DA APLICAÇÃO ---
+        class App {
+            constructor() {
+                this.ui = this.getUIElements();
+                this.state = this.getInitialState();
+                this.supabase = supabase.createClient('https://cykvtziwulnqgyyaeugj.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN5a3Z0eml3dWxucWd5eWFldWdqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEzODkyMTcsImV4cCI6MjA2Njk2NTIxN30.fbSC1VOp0OT7TKnGAgwbaiqPEAMUty4bfgRN6esCLZo');
+            }
 
-            // --- ESTADO DA APLICAÇÃO ---
-            let currentModule = 'DASHBOARD';
-            let allPayments = []; 
-            let allTags = [];
-            const moduleNames = ["DESPESAS ADM MENSAIS", "FOLHA DE PAGAMENTO", "IMPOSTOS", "CONTAS AVULSAS", "EMPRESTIMOS"];
-            let modulesChartInstance = null;
-            let statusChartInstance = null;
-            let tagsChartInstance = null;
-            let selectedYear = 'all', selectedMonth = 'all', searchTerm = '', selectedPriority = 'all', selectedPaymentMethod = 'all', selectedTag = 'all';
-            let actionToConfirm = null;
-
-            let currentPage = 1;
-            const ITEMS_PER_PAGE = 50;
-            let totalItems = 0;
-
-            // --- ESTADO DA EMPRESA ---
-            const companies = [
-                { id: 1, name: 'PONTAZO BANK' },
-                { id: 2, name: 'ISAO' }
-            ];
-            let currentCompanyId = companies[0].id;
-
-            // --- CONFIGURAÇÃO DO SUPABASE ---
-            const SUPABASE_URL = 'https://cykvtziwulnqgyyaeugj.supabase.co';
-            const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN5a3Z0eml3dWxucWd5eWFldWdqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEzODkyMTcsImV4cCI6MjA2Njk2NTIxN30.fbSC1VOp0OT7TKnGAgwbaiqPEAMUty4bfgRN6esCLZo';
-
-            const { createClient } = supabase;
-            const _supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-            const showLoader = () => loadingOverlay.style.display = 'flex';
-            const hideLoader = () => loadingOverlay.style.display = 'none';
-
-            // --- LÓGICA DE LOGIN ESTÁTICO ---
-            loginForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                const username = document.getElementById('username').value;
-                const password = document.getElementById('password').value;
-
-                if (username === 'pontazobank' && password === 'pontazobank@2025') {
-                    loginScreen.style.display = 'none';
-                    appContainer.classList.remove('hidden');
-                    initializeMainApp();
-                } else {
-                    loginError.textContent = 'Utilizador ou senha inválidos.';
+            // --- SETUP ---
+            getUIElements() {
+                const elementIds = [
+                    'loading-overlay', 'login-screen', 'app-container', 'login-form', 'login-error', 'company-selector', 'logout-btn', 'controls-section',
+                    'summary-cards', 'charts-section', 'export-pdf-btn', 'export-csv-btn', 'add-btn', 'add-dropdown', 'add-payment-btn', 'add-loan-btn', 'payment-modal',
+                    'payment-form', 'cancel-btn', 'payment-table-body', 'modal-title', 'payment-id', 'empty-state', 'module-tabs', 'module-content',
+                    'year-filter', 'month-filter', 'search-input', 'priority-filter', 'payment-method-filter', 'tag-filter', 'notification-bell',
+                    'notification-badge', 'notification-dropdown', 'confirm-modal', 'confirm-title', 'confirm-text', 'confirm-btn', 'cancel-confirm-btn',
+                    'pagination-controls', 'prev-page-btn', 'next-page-btn', 'page-info', 'tags-select', 'manage-tags-btn', 'manage-tags-modal',
+                    'close-tags-modal-btn', 'add-tag-form', 'new-tag-name', 'tags-list', 'payments-view', 'loans-view', 'loan-modal',
+                    'loan-form', 'cancel-loan-btn', 'recurring-payment-section', 'recurring-payment-checkbox', 'installments-container', 'installments',
+                    'admin-tab-btn', 'admin-panel', 'add-company-form', 'company-list', 'add-user-form', 'user-list', 'user-permissions-modal',
+                    'user-permissions-form', 'user-permissions-title', 'permissions-company-list', 'permissions-action-list', 'cancel-permissions-btn',
+                    'permission-username', 'loan-tag', 'total-value', 'pending-count', 'paid-count', 'total-value-title', 'pending-count-title', 'paid-count-title',
+                    'new-user-username', 'new-user-password', 'username', 'password', 'new-company-name',
+                    'whatsapp-notifications-modal', 'whatsapp-notifications-form', 'whatsapp-notifications-title', 'whatsapp-username',
+                    'whatsapp-number', 'whatsapp-notify-upcoming', 'whatsapp-notify-overdue', 'cancel-whatsapp-notifications-btn',
+                    'log-date-filter', 'view-log-btn', 'audit-log-modal', 'close-audit-log-btn', 'audit-log-content',
+                    'generate-backup-btn', 'restore-backup-input'
+                ];
+                const ui = {};
+                for (const id of elementIds) {
+                    const el = document.getElementById(id);
+                    if (el) {
+                        const camelCaseId = id.replace(/-([a-z])/g, g => g[1].toUpperCase());
+                        ui[camelCaseId] = el;
+                    } else {
+                        console.warn(`Element with ID "${id}" not found.`);
+                    }
                 }
-            });
+                return ui;
+            }
 
-            // --- LÓGICA DE EMPRESA ---
-            const populateCompanySelector = () => {
-                companySelector.innerHTML = '';
-                companies.forEach(company => {
+            getInitialState() {
+                return {
+                    currentModule: 'DASHBOARD', allPayments: [], allTags: [],
+                    moduleNames: ["DESPESAS ADM MENSAIS", "FOLHA DE PAGAMENTO", "IMPOSTOS", "CONTAS AVULSAS", "EMPRESTIMOS"],
+                    modulesChartInstance: null, statusChartInstance: null, tagsChartInstance: null,
+                    selectedYear: 'all', selectedMonth: 'all', searchTerm: '', selectedPriority: 'all', selectedPaymentMethod: 'all', selectedTag: 'all',
+                    actionToConfirm: null, currentPage: 1, itemsPerPage: 50, totalItems: 0,
+                    currentUser: null, allSystemCompanies: [], staticUsers: [], currentCompanyId: null,
+                };
+            }
+
+            init() {
+                this.ui.loginForm.addEventListener('submit', (e) => this.handleLogin(e));
+            }
+
+            async handleLogin(e) {
+                e.preventDefault();
+                this.showLoader();
+                const username = this.ui.username.value;
+                const password = this.ui.password.value;
+                
+                await this.loadStaticUsers();
+
+                const adminUser = {
+                    username: 'ramiles.silva', password: 'gtasana3614U#', isSuperAdmin: true, permissions: [], companies: []
+                };
+                const normalUser = {
+                    username: 'pontazobank', password: 'pontazobank@2025', isSuperAdmin: false,
+                    permissions: ['create_payment', 'edit_payment', 'authorize_payment', 'pay_payment', 'create_loan', 'delete_loan', 'manage_tags'],
+                    companies: [1, 2]
+                };
+
+                const users = [adminUser, normalUser, ...this.state.staticUsers];
+                const foundUser = users.find(u => u.username === username && u.password === password);
+
+                if (foundUser) {
+                    this.state.currentUser = foundUser;
+                    await this.logAction('Login', { success: true });
+                    this.ui.loginScreen.style.display = 'none';
+                    this.ui.appContainer.classList.remove('hidden');
+                    this.initializeMainApp();
+                } else {
+                    await this.logAction('Login Failed', { username: username });
+                    this.ui.loginError.textContent = 'Utilizador ou senha inválidos.';
+                    this.hideLoader();
+                }
+            }
+
+            async initializeMainApp() {
+                this.showLoader();
+                await this.populateCompanySelector();
+                await this.fetchTags();
+                this.applyFilters();
+                this.addEventListeners();
+                this.hideLoader();
+            }
+            
+            showLoader() { this.ui.loadingOverlay.style.display = 'flex'; }
+            hideLoader() { this.ui.loadingOverlay.style.display = 'none'; }
+            formatCurrency(value) { return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value); }
+            formatDate(dateString, includeTime = false) {
+                if (!dateString) return 'N/A';
+                const date = new Date(dateString);
+                const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
+                if (includeTime) {
+                    options.hour = '2-digit';
+                    options.minute = '2-digit';
+                    options.second = '2-digit';
+                }
+                return new Intl.DateTimeFormat('pt-BR', options).format(date);
+            }
+            parseCurrency(valueString) {
+                if (typeof valueString !== 'string') return NaN;
+                return parseFloat(valueString.replace(/\./g, '').replace(',', '.'));
+            }
+            stringToColor(str) {
+                let hash = 0;
+                if (!str) return '#64748b';
+                for (let i = 0; i < str.length; i++) {
+                    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+                }
+                const h = hash % 360;
+                return `hsla(${h}, 70%, 70%, 1)`;
+            }
+
+            hasPermission(permission) {
+                if (this.state.currentUser?.isSuperAdmin) return true;
+                return this.state.currentUser?.permissions?.includes(permission);
+            }
+
+            checkPermissions() {
+                document.querySelectorAll('[data-permission]').forEach(el => {
+                    const requiredPermission = el.dataset.permission;
+                    el.style.display = this.hasPermission(requiredPermission) ? '' : 'none';
+                });
+            }
+            
+            async loadStaticUsers() {
+                const { data, error } = await this.supabase.from('static_users').select('*');
+                if (error) {
+                    console.error("Erro ao carregar utilizadores estáticos:", error);
+                    this.state.staticUsers = [];
+                } else {
+                    this.state.staticUsers = data;
+                }
+            }
+
+            async populateCompanySelector() {
+                const { data, error } = await this.supabase.from('companies').select('*').order('name');
+                if (error) {
+                    console.error("Erro ao buscar empresas:", error);
+                    return;
+                }
+                this.state.allSystemCompanies = data;
+                
+                let companiesToDisplay = [];
+                if (this.state.currentUser.isSuperAdmin) {
+                    companiesToDisplay = this.state.allSystemCompanies;
+                } else {
+                    companiesToDisplay = this.state.allSystemCompanies.filter(c => this.state.currentUser.companies.includes(c.id));
+                }
+
+                this.ui.companySelector.innerHTML = '';
+                companiesToDisplay.forEach(company => {
                     const option = document.createElement('option');
                     option.value = company.id;
                     option.textContent = company.name;
-                    companySelector.appendChild(option);
+                    this.ui.companySelector.appendChild(option);
                 });
-                companySelector.value = currentCompanyId;
-            };
 
-            async function initializeMainApp() {
-                showLoader();
-                populateCompanySelector();
+                if (companiesToDisplay.length > 0) {
+                    this.state.currentCompanyId = companiesToDisplay[0].id;
+                    this.ui.companySelector.value = this.state.currentCompanyId;
+                } else {
+                    this.state.currentCompanyId = null;
+                }
+            }
 
-                const switchCompany = (companyId) => {
-                    const newCompanyId = parseInt(companyId);
-                    if (currentCompanyId !== newCompanyId) {
-                        currentCompanyId = newCompanyId;
-                        applyFilters();
-                    }
-                };
+            async fetchPaginatedPayments() {
+                if (!this.state.currentCompanyId) {
+                    this.state.allPayments = [];
+                    this.state.totalItems = 0;
+                    this.updateUI();
+                    return;
+                }
+                this.showLoader();
+                let query = this.supabase.from('payments').select('*', { count: 'exact' }).eq('company_id', this.state.currentCompanyId);
+
+                if (this.state.currentModule === 'PAGO') {
+                    query = query.eq('status', 'Pago');
+                } else if (this.state.currentModule === 'CONTAS A PAGAR') {
+                    query = query.eq('status', 'Pendente');
+                } else if (this.state.currentModule !== 'DASHBOARD' && this.state.currentModule !== 'EMPRESTIMOS' && this.state.currentModule !== 'ADMIN') {
+                    query = query.eq('module', this.state.currentModule);
+                }
+
+                if (this.state.searchTerm) query = query.ilike('description', `%${this.state.searchTerm}%`);
+                if (this.state.selectedPriority !== 'all') query = query.eq('priority', this.state.selectedPriority);
+                if (this.state.selectedPaymentMethod !== 'all') query = query.eq('paymentMethod', this.state.selectedPaymentMethod);
+                if (this.state.selectedTag !== 'all') query = query.eq('tag', this.state.selectedTag);
                 
-                companySelector.addEventListener('change', (e) => switchCompany(e.target.value));
-
-                // --- FUNÇÕES AUXILIARES ---
-                const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-                const formatDate = (dateString) => {
-                    if (!dateString) return 'N/A';
-                    const [year, month, day] = dateString.split('-');
-                    return `${day}/${month}/${year}`;
-                };
-                const parseCurrency = (valueString) => {
-                    if (typeof valueString !== 'string') return NaN;
-                    return parseFloat(valueString.replace(/\./g, '').replace(',', '.'));
-                }
-                const stringToColor = (str) => {
-                    let hash = 0;
-                    if (!str) return '#64748b';
-                    for (let i = 0; i < str.length; i++) {
-                        hash = str.charCodeAt(i) + ((hash << 5) - hash);
-                    }
-                    const h = hash % 360;
-                    return `hsla(${h}, 70%, 70%, 1)`;
-                }
-                
-                // --- BUSCAR DADOS DO SUPABASE ---
-                async function fetchPaginatedPayments() {
-                    showLoader();
-                    let query = _supabase.from('payments').select('*', { count: 'exact' }).eq('company_id', currentCompanyId);
-
-                    if (currentModule === 'PAGO') {
-                        query = query.eq('status', 'Pago');
-                    } else if (currentModule === 'CONTAS A PAGAR') {
-                        query = query.eq('status', 'Pendente');
-                    } else if (currentModule !== 'DASHBOARD' && currentModule !== 'EMPRESTIMOS') {
-                        query = query.eq('module', currentModule);
-                    }
-
-                    if (searchTerm) query = query.ilike('description', `%${searchTerm}%`);
-                    if (selectedPriority !== 'all') query = query.eq('priority', selectedPriority);
-                    if (selectedPaymentMethod !== 'all') query = query.eq('paymentMethod', selectedPaymentMethod);
-                    if (selectedTag !== 'all') query = query.eq('tag', selectedTag);
-                    
-                    if (selectedYear !== 'all') {
-                        const startDate = `${selectedYear}-01-01`;
-                        const endDate = `${selectedYear}-12-31`;
-                        if (selectedMonth !== 'all') {
-                            const monthStartDate = new Date(selectedYear, selectedMonth, 1).toISOString().slice(0,10);
-                            const monthEndDate = new Date(selectedYear, parseInt(selectedMonth) + 1, 0).toISOString().slice(0,10);
-                            query = query.gte('date', monthStartDate).lte('date', monthEndDate);
-                        } else {
-                            query = query.gte('date', startDate).lte('date', endDate);
-                        }
-                    }
-
-                    const from = (currentPage - 1) * ITEMS_PER_PAGE;
-                    const to = from + ITEMS_PER_PAGE - 1;
-                    query = query.range(from, to).order('dueDate', { ascending: true });
-
-                    const { data, error, count } = await query;
-                    hideLoader();
-
-                    if (error) {
-                        console.error('Erro ao buscar pagamentos:', error);
-                        return;
-                    }
-
-                    allPayments = data;
-                    totalItems = count;
-                    updateUI();
-                }
-
-                async function fetchAllFilteredDataForDashboard() {
-                    showLoader();
-                    let query = _supabase.from('payments').select('*').eq('company_id', currentCompanyId);
-                    if (selectedYear !== 'all') {
-                        const startDate = `${selectedYear}-01-01`;
-                        const endDate = `${selectedYear}-12-31`;
-                        if (selectedMonth !== 'all') {
-                            const monthStartDate = new Date(selectedYear, selectedMonth, 1).toISOString().slice(0,10);
-                            const monthEndDate = new Date(selectedYear, parseInt(selectedMonth) + 1, 0).toISOString().slice(0,10);
-                            query = query.gte('date', monthStartDate).lte('date', monthEndDate);
-                        } else {
-                            query = query.gte('date', startDate).lte('date', endDate);
-                        }
-                    }
-                    const { data, error } = await query;
-                    hideLoader();
-                    if (error) {
-                        console.error('Erro ao buscar dados para o dashboard:', error);
-                        return [];
-                    }
-                    return data;
-                }
-
-                // --- LÓGICA DO MODAL ---
-                const openModal = (type) => {
-                    if (type === 'payment') {
-                        paymentModal.style.display = 'flex';
-                    } else if (type === 'loan') {
-                        loanModal.style.display = 'flex';
-                    }
-                };
-                const closeModal = (type) => {
-                    if (type === 'payment') {
-                        paymentModal.style.display = 'none';
-                        paymentForm.reset();
-                        paymentIdInput.value = '';
-                        modalTitle.textContent = 'Adicionar Novo Pagamento';
-                        recurringPaymentCheckbox.checked = false;
-                        installmentsContainer.classList.add('hidden');
-                        installmentsInput.value = '';
-                    } else if (type === 'loan') {
-                        loanModal.style.display = 'none';
-                        loanForm.reset();
-                    }
-                };
-                
-                // --- LÓGICA DE FILTROS ---
-                const populateYearFilter = async () => {
-                    showLoader();
-                    const { data, error } = await _supabase.from('payments').select('date').eq('company_id', currentCompanyId);
-                    hideLoader();
-                    
-                    if (error) {
-                        console.error('Erro ao buscar datas para o filtro de ano:', error);
-                        const currentYear = new Date().getFullYear().toString();
-                        yearFilter.innerHTML = '<option value="all">Todos</option>';
-                        yearFilter.add(new Option(currentYear, currentYear));
-                        return;
-                    }
-                    
-                    const years = [...new Set(data.map(p => p.date.substring(0, 4)))];
-                    const currentYear = new Date().getFullYear().toString();
-                    if (!years.includes(currentYear)) {
-                        years.push(currentYear);
-                    }
-                    years.sort().reverse();
-                    yearFilter.innerHTML = '<option value="all">Todos</option>';
-                    years.forEach(year => yearFilter.add(new Option(year, year)));
-                };
-
-                const applyFilters = () => {
-                    currentPage = 1; 
-                    selectedYear = yearFilter.value;
-                    selectedMonth = monthFilter.value;
-                    searchTerm = searchInput.value;
-                    selectedPriority = priorityFilter.value;
-                    selectedPaymentMethod = paymentMethodFilter.value;
-                    selectedTag = tagFilter.value;
-                    monthFilter.disabled = selectedYear === 'all';
-                    
-                    if(currentModule === 'DASHBOARD') {
-                        updateUI();
-                    } else if (currentModule === 'EMPRESTIMOS') {
-                        updateUI();
-                    }
-                    else {
-                        fetchPaginatedPayments();
-                    }
-                };
-
-                // --- LÓGICA DE NOTIFICAÇÕES ---
-                const updateNotifications = async () => {
-                    const today = new Date().toISOString().slice(0, 10);
-                    const sevenDaysFromNow = new Date();
-                    sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
-                    const sevenDaysISO = sevenDaysFromNow.toISOString().slice(0, 10);
-
-                    const { data: overdue, error: overdueError } = await _supabase.from('payments').select('description, dueDate').eq('company_id', currentCompanyId).eq('status', 'Pendente').lt('dueDate', today);
-                    const { data: upcoming, error: upcomingError } = await _supabase.from('payments').select('description, dueDate').eq('company_id', currentCompanyId).eq('status', 'Pendente').gte('dueDate', today).lte('dueDate', sevenDaysISO);
-                    
-                    if(overdueError || upcomingError) { console.error('Erro ao buscar notificações'); return; }
-
-                    const totalNotifications = overdue.length + upcoming.length;
-                    notificationDropdown.innerHTML = '';
-
-                    if (totalNotifications > 0) {
-                        notificationBadge.textContent = totalNotifications;
-                        notificationBadge.classList.remove('hidden');
-                        if (overdue.length > 0) {
-                            notificationDropdown.innerHTML += `<div class="p-2 font-bold text-red-400 border-b border-slate-600">Vencidas (${overdue.length})</div>`;
-                            overdue.forEach(p => notificationDropdown.innerHTML += `<div class="p-2 border-b border-slate-700"><strong>${p.description}</strong><br><span class="text-xs text-slate-400">Venceu em: ${formatDate(p.dueDate)}</span></div>`);
-                        }
-                        if (upcoming.length > 0) {
-                            notificationDropdown.innerHTML += `<div class="p-2 font-bold text-amber-400 border-b border-slate-600">A Vencer (${upcoming.length})</div>`;
-                            upcoming.forEach(p => notificationDropdown.innerHTML += `<div class="p-2 border-b border-slate-700"><strong>${p.description}</strong><br><span class="text-xs text-slate-400">Vence em: ${formatDate(p.dueDate)}</span></div>`);
-                        }
+                if (this.state.selectedYear !== 'all') {
+                    const startDate = `${this.state.selectedYear}-01-01`;
+                    const endDate = `${this.state.selectedYear}-12-31`;
+                    if (this.state.selectedMonth !== 'all') {
+                        const monthStartDate = new Date(this.state.selectedYear, this.state.selectedMonth, 1).toISOString().slice(0,10);
+                        const monthEndDate = new Date(this.state.selectedYear, parseInt(this.state.selectedMonth) + 1, 0).toISOString().slice(0,10);
+                        query = query.gte('date', monthStartDate).lte('date', monthEndDate);
                     } else {
-                        notificationBadge.classList.add('hidden');
-                        notificationDropdown.innerHTML = `<div class="p-4 text-center text-slate-400">Nenhuma notificação.</div>`;
+                        query = query.gte('date', startDate).lte('date', endDate);
                     }
-                };
-                notificationBell.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    notificationDropdown.style.display = notificationDropdown.style.display === 'block' ? 'none' : 'block';
-                });
-                window.addEventListener('click', () => notificationDropdown.style.display = 'none');
+                }
 
-                // --- LÓGICA DE RENDERIZAÇÃO ---
-                const updateUI = async () => {
-                    updateActiveTab();
-                    const addPaymentContainer = document.getElementById('add-payment-container');
-                    
-                    if (currentModule === 'DASHBOARD') {
-                        paginationControls.style.display = 'none';
-                        chartsSection.style.display = 'grid';
-                        moduleContent.style.display = 'none';
-                        const dashboardData = await fetchAllFilteredDataForDashboard();
-                        updateDashboard(dashboardData);
-                    } else if (currentModule === 'EMPRESTIMOS') {
-                        paginationControls.style.display = 'none';
-                        chartsSection.style.display = 'none';
-                        moduleContent.style.display = 'block';
-                        paymentsView.style.display = 'none';
-                        loansView.style.display = 'grid';
-                        addPaymentContainer.style.display = 'block';
-                        renderLoans();
+                const from = (this.state.currentPage - 1) * this.state.itemsPerPage;
+                const to = from + this.state.itemsPerPage - 1;
+                query = query.range(from, to).order('dueDate', { ascending: true });
+
+                const { data, error, count } = await query;
+                this.hideLoader();
+
+                if (error) {
+                    console.error('Erro ao buscar pagamentos:', error);
+                    return;
+                }
+
+                this.state.allPayments = data;
+                this.state.totalItems = count;
+                this.updateUI();
+            }
+
+            async fetchAllFilteredDataForDashboard() {
+                if (!this.state.currentCompanyId) return [];
+                this.showLoader();
+                let query = this.supabase.from('payments').select('*').eq('company_id', this.state.currentCompanyId);
+                if (this.state.selectedYear !== 'all') {
+                    const startDate = `${this.state.selectedYear}-01-01`;
+                    const endDate = `${this.state.selectedYear}-12-31`;
+                    if (this.state.selectedMonth !== 'all') {
+                        const monthStartDate = new Date(this.state.selectedYear, this.state.selectedMonth, 1).toISOString().slice(0,10);
+                        const monthEndDate = new Date(this.state.selectedYear, parseInt(this.state.selectedMonth) + 1, 0).toISOString().slice(0,10);
+                        query = query.gte('date', monthStartDate).lte('date', monthEndDate);
                     } else {
-                        paginationControls.style.display = 'flex';
-                        chartsSection.style.display = 'none';
-                        moduleContent.style.display = 'block';
-                        paymentsView.style.display = 'block';
-                        loansView.style.display = 'none';
-                        addPaymentContainer.style.display = (currentModule === 'CONTAS A PAGAR' || currentModule === 'PAGO') ? 'none' : 'block';
-                        renderTable(allPayments);
-                        updateModuleSummary(allPayments);
-                        updatePaginationControls();
+                        query = query.gte('date', startDate).lte('date', endDate);
                     }
-                    updateNotifications();
-                };
+                }
+                const { data, error } = await query;
+                this.hideLoader();
+                if (error) {
+                    console.error('Erro ao buscar dados para o dashboard:', error);
+                    return [];
+                }
+                return data;
+            }
+            
+            async fetchTags() {
+                if (!this.state.currentCompanyId) return;
+                const { data, error } = await this.supabase.from('tags').select('id, name').eq('company_id', this.state.currentCompanyId).order('name');
+                if (error) { console.error('Erro ao buscar tags:', error); return; }
+                this.state.allTags = data;
+                this.populateTagFilter();
+                this.renderTagsInManageModal();
+                this.populateTagsInPaymentModal();
+            }
 
-                // --- PAGINAÇÃO ---
-                const updatePaginationControls = () => {
-                    const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
-                    pageInfo.textContent = `Página ${currentPage} de ${totalPages || 1}`;
-                    prevPageBtn.disabled = currentPage === 1;
-                    nextPageBtn.disabled = currentPage === totalPages || totalPages === 0;
-                };
-
-                prevPageBtn.addEventListener('click', () => {
-                    if (currentPage > 1) {
-                        currentPage--;
-                        fetchPaginatedPayments();
-                    }
+            populateTagFilter() {
+                this.ui.tagFilter.innerHTML = '<option value="all">Todas as Tags</option>';
+                this.state.allTags.forEach(tag => this.ui.tagFilter.add(new Option(tag.name, tag.name)));
+            }
+            
+            populateTagsInPaymentModal() {
+                this.ui.tagsSelect.innerHTML = '<option value="">Nenhuma</option>';
+                this.state.allTags.forEach(tag => {
+                    this.ui.tagsSelect.add(new Option(tag.name, tag.name));
                 });
+                this.ui.loanTag.innerHTML = '<option value="">Nenhuma</option>';
+                this.state.allTags.forEach(tag => this.ui.loanTag.add(new Option(tag.name, tag.name)));
+            }
 
-                nextPageBtn.addEventListener('click', () => {
-                    const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
-                    if (currentPage < totalPages) {
-                        currentPage++;
-                        fetchPaginatedPayments();
-                    }
-                });
-
-                // --- DASHBOARD ---
-                const updateDashboard = (payments) => {
-                    const totalValue = payments.reduce((sum, p) => sum + p.value, 0);
-                    const totalPendingValue = payments.filter(p => p.status === 'Pendente').reduce((sum, p) => sum + p.value, 0);
-                    const totalPaidValue = payments.filter(p => p.status === 'Pago').reduce((sum, p) => sum + p.value, 0);
-                    totalValueEl.textContent = formatCurrency(totalValue);
-                    pendingCountEl.textContent = formatCurrency(totalPendingValue);
-                    paidCountEl.textContent = formatCurrency(totalPaidValue);
-                    renderModulesChart(payments);
-                    renderStatusChart(payments);
-                    renderTagsChart(payments);
-                };
-                
-                const renderModulesChart = (payments) => {
-                    const ctx = document.getElementById('modules-chart').getContext('2d');
-                    const data = {
-                        labels: moduleNames,
-                        datasets: [{
-                            label: 'Custo Total',
-                            data: moduleNames.map(module => payments.filter(p => p.module === module).reduce((sum, p) => sum + p.value, 0)),
-                            backgroundColor: ['#06b6d4', '#0891b2', '#0e7490', '#155e75', '#164e63'],
-                            borderColor: '#1e293b', borderWidth: 2, borderRadius: 5,
-                        }]
-                    };
-                    if (modulesChartInstance) modulesChartInstance.destroy();
-                    modulesChartInstance = new Chart(ctx, {
-                        type: 'bar', data: data,
-                        options: {
-                            indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-                            plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => formatCurrency(c.parsed.x) } } },
-                            scales: { y: { ticks: { color: '#94a3b8' }, grid: { display: false } }, x: { beginAtZero: true, ticks: { color: '#94a3b8' }, grid: { color: '#334155' }, title: { display: true, text: 'Valor (R$)', color: '#94a3b8' } } }
-                        }
-                    });
-                };
-                
-                const renderStatusChart = (payments) => {
-                    const ctx = document.getElementById('status-chart').getContext('2d');
-                    const paidValue = payments.filter(p => p.status === 'Pago').reduce((sum, p) => sum + p.value, 0);
-                    const pendingValue = payments.filter(p => p.status === 'Pendente').reduce((sum, p) => sum + p.value, 0);
-                    const data = {
-                        labels: ['Pago', 'Pendente'],
-                        datasets: [{ data: [paidValue, pendingValue], backgroundColor: ['#10B981', '#EF4444'], borderColor: '#1e293b', borderWidth: 4 }]
-                    };
-                    if (statusChartInstance) statusChartInstance.destroy();
-                    statusChartInstance = new Chart(ctx, {
-                        type: 'doughnut', data: data,
-                        options: {
-                            responsive: true, maintainAspectRatio: false, cutout: '70%',
-                            plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8' } }, tooltip: { callbacks: { label: (c) => `${c.label}: ${formatCurrency(c.parsed)}` } } }
-                        }
-                    });
-                };
-
-                const renderTagsChart = (payments) => {
-                    const ctx = document.getElementById('tags-chart').getContext('2d');
-                    const tagsData = {};
-                    payments.forEach(p => {
-                        if (p.tag) {
-                            if (!tagsData[p.tag]) tagsData[p.tag] = 0;
-                            tagsData[p.tag] += p.value;
-                        }
-                    });
-                    
-                    const sortedTags = Object.entries(tagsData).sort(([,a],[,b]) => b-a).slice(0, 10);
-                    const labels = sortedTags.map(item => item[0]);
-                    const dataValues = sortedTags.map(item => item[1]);
-
-                    const data = {
-                        labels: labels,
-                        datasets: [{
-                            label: 'Custo por Tag',
-                            data: dataValues,
-                            backgroundColor: labels.map(label => stringToColor(label)),
-                            borderColor: '#1e293b', borderWidth: 4
-                        }]
-                    };
-                    if (tagsChartInstance) tagsChartInstance.destroy();
-                    tagsChartInstance = new Chart(ctx, {
-                        type: 'doughnut', data: data,
-                        options: {
-                            responsive: true, maintainAspectRatio: false, cutout: '70%',
-                            plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8' } }, tooltip: { callbacks: { label: (c) => `${c.label}: ${formatCurrency(c.parsed)}` } } }
-                        }
-                    });
-                };
-
-                // --- MÓDULOS INDIVIDUAIS ---
-                const updateModuleSummary = (payments) => {
-                    const totalValue = payments.reduce((sum, p) => sum + p.value, 0);
-                    const pendingCount = payments.filter(p => p.status === 'Pendente').length;
-                    const paidCount = payments.length - pendingCount;
-                    totalValueEl.textContent = formatCurrency(totalValue);
-                    pendingCountEl.textContent = pendingCount;
-                    paidCountEl.textContent = paidCount;
-                };
-
-                const renderTable = (payments) => {
-                    tableBody.innerHTML = '';
-                    emptyState.style.display = payments.length === 0 ? 'block' : 'none';
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
-                    payments.forEach(p => {
-                        const isOverdue = p.status === 'Pendente' && new Date(p.dueDate + 'T00:00:00') < today;
-                        const row = document.createElement('tr');
-                        row.className = 'hover:bg-slate-700/50 transition-colors';
-                        const tagHtml = p.tag ? `<span class="tag-badge" style="background-color: ${stringToColor(p.tag)}20; color: ${stringToColor(p.tag)};">${p.tag}</span>` : '';
-
-                        const authorizationStatus = p.authorization_status || 'Pendente';
-                        let authorizationBadgeClass = 'status-autorizacao-pendente';
-                        if (authorizationStatus === 'Autorizado') {
-                            authorizationBadgeClass = 'status-autorizado';
-                        } else if (authorizationStatus === 'Não Autorizado') {
-                            authorizationBadgeClass = 'status-nao-autorizado';
-                        }
-
-                        let actionButtons = `
-                            <button data-id="${p.id}" class="edit-btn text-cyan-400 hover:text-cyan-300 mx-2" title="Editar"><i class="fas fa-pencil-alt"></i></button>
-                            <button data-id="${p.id}" class="delete-btn text-red-500 hover:text-red-400 mx-2" title="Excluir"><i class="fas fa-trash-alt"></i></button>
-                        `;
-
-                        if (authorizationStatus === 'Pendente') {
-                            actionButtons += `
-                                <button data-id="${p.id}" class="authorize-btn text-green-500 hover:text-green-400 mx-2" title="Autorizar"><i class="fas fa-thumbs-up"></i></button>
-                                <button data-id="${p.id}" class="deny-btn text-red-500 hover:text-red-400 mx-2" title="Não Autorizar"><i class="fas fa-thumbs-down"></i></button>
-                            `;
-                        }
-
-                        if (authorizationStatus === 'Autorizado' && p.status === 'Pendente') {
-                            actionButtons += `<button data-id="${p.id}" class="toggle-status-btn text-green-500 hover:text-green-400 mx-2" title="Marcar como Pago"><i class="fas fa-check-circle"></i></button>`;
-                        }
-
-                        row.innerHTML = `
-                            <td class="p-4 font-medium text-white">${p.description} ${p.attachment ? `<a href="${p.attachment}" target="_blank" class="text-cyan-400 hover:text-cyan-300" title="Ver Anexo"><i class="fas fa-paperclip ml-2"></i></a>` : ''}</td>
-                            <td class="p-4">${tagHtml}</td>
-                            <td class="p-4 font-medium text-white whitespace-nowrap">${formatCurrency(p.value)}</td>
-                            <td class="p-4 whitespace-nowrap ${isOverdue ? 'text-overdue' : ''}">${formatDate(p.dueDate)}</td>
-                            <td class="p-4 text-center"><span class="priority-badge priority-${p.priority.toLowerCase()}">${p.priority}</span></td>
-                            <td class="p-4 text-center"><span class="status-badge ${p.status === 'Pago' ? 'status-pago' : 'status-pendente'}">${p.status}</span></td>
-                            <td class="p-4 text-center"><span class="status-badge ${authorizationBadgeClass}">${authorizationStatus.replace(/_/g, ' ')}</span></td>
-                            <td class="p-4 text-center whitespace-nowrap">${actionButtons}</td>
-                        `;
-                        tableBody.appendChild(row);
-                    });
-                    addTableEventListeners();
-                };
-
-                const renderLoans = async () => {
-                    showLoader();
-                    const { data: loans, error: loansError } = await _supabase.from('loans').select('*').eq('company_id', currentCompanyId).order('created_at');
-                    const { data: payments, error: paymentsError } = await _supabase.from('payments').select('loan_id, status').eq('company_id', currentCompanyId);
-                    hideLoader();
-
-                    if (loansError || paymentsError) {
-                        console.error('Erro ao buscar empréstimos ou pagamentos:', loansError || paymentsError);
-                        loansView.innerHTML = `<div class="lg:col-span-3 text-center p-12 text-slate-400"><p>Erro ao carregar empréstimos.</p></div>`;
-                        return;
-                    }
-
-                    loansView.innerHTML = '';
-                    if (loans.length === 0) {
-                        loansView.innerHTML = `<div class="lg:col-span-3 text-center p-12 text-slate-400">
-                            <i class="fas fa-landmark fa-3x mb-4"></i>
-                            <p class="font-semibold">Nenhum empréstimo registado.</p>
-                        </div>`;
-                        return;
-                    }
-
-                    loans.forEach(loan => {
-                        const relatedPayments = payments.filter(p => p.loan_id === loan.id);
-                        const paidCount = relatedPayments.filter(p => p.status === 'Pago').length;
-                        const progress = (paidCount / loan.installments) * 100;
-                        const totalFinanced = loan.total_amount + (loan.valor_iof_rs || 0) + (loan.valor_tac_rs || 0);
-                        const installmentValue = totalFinanced / loan.installments;
-                        const remainingAmount = (loan.installments - paidCount) * installmentValue;
-
-                        const card = document.createElement('div');
-                        card.className = 'bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-lg flex flex-col justify-between';
-                        card.innerHTML = `
-                            <div>
-                                <div class="flex justify-between items-start">
-                                    <h3 class="text-xl font-bold text-white mb-2">${loan.description}</h3>
-                                    <div class="flex items-center gap-2">
-                                        <span class="status-badge ${loan.status === 'Quitado' ? 'status-pago' : 'status-pendente'}">${loan.status}</span>
-                                        <button data-id="${loan.id}" class="delete-loan-btn text-red-500 hover:text-red-400 text-lg"><i class="fas fa-trash-alt"></i></button>
-                                    </div>
-                                </div>
-                                <p class="text-slate-400">Valor Total: ${formatCurrency(loan.total_amount)}</p>
-                                <p class="text-slate-400">Saldo Devedor: ${formatCurrency(remainingAmount)}</p>
-                                <div class="text-xs text-slate-500 mt-2">
-                                    <span>CET: ${loan.cet_am || 'N/A'}% a.m.</span> | 
-                                    <span>Juros: ${loan.juros_nominais_am || 'N/A'}% a.m.</span>
-                                </div>
-                            </div>
-                            <div class="mt-4">
-                                <div class="flex justify-between items-center mb-1 text-sm">
-                                    <span class="text-slate-300">Progresso</span>
-                                    <span>${paidCount} / ${loan.installments} Parcelas</span>
-                                </div>
-                                <div class="w-full bg-slate-700 rounded-full h-2.5">
-                                    <div class="bg-cyan-500 h-2.5 rounded-full" style="width: ${progress}%"></div>
-                                </div>
-                            </div>
-                        `;
-                        loansView.appendChild(card);
-                    });
-                    addLoanEventListeners();
-                };
-
-                const updateActiveTab = () => {
-                    document.querySelectorAll('.tab-btn').forEach(tab => tab.classList.toggle('active', tab.dataset.module === currentModule));
-                };
-
-                // --- LÓGICA DE EXPORTAÇÃO PDF ---
-                const exportToPDF = async () => {
-                    showLoader();
-                    const { jsPDF } = window.jspdf;
-                    const doc = new jsPDF();
-                    const todayDate = new Date().toISOString().slice(0, 10);
-                    const period = selectedYear === 'all' ? 'Geral' : `${selectedMonth !== 'all' ? monthFilter.options[monthFilter.selectedIndex].text + ' de ' : ''}${selectedYear}`;
-                    
-                    doc.setFont('helvetica', 'bold');
-                    doc.setFontSize(18);
-                    doc.text('PONTAZO BANK', 14, 22);
-                    doc.setFont('helvetica', 'normal');
-                    doc.setFontSize(12);
-                    
-                    if (currentModule === 'DASHBOARD') {
-                        doc.text(`Relatório do Dashboard - Período: ${period}`, 14, 30);
-                        const dashboardData = await fetchAllFilteredDataForDashboard();
-                        const totalValue = dashboardData.reduce((sum, p) => sum + p.value, 0);
-                        const totalPendingValue = dashboardData.filter(p => p.status === 'Pendente').reduce((sum, p) => sum + p.value, 0);
-                        const totalPaidValue = dashboardData.filter(p => p.status === 'Pago').reduce((sum, p) => sum + p.value, 0);
-                        
-                        const modulesChartImg = document.getElementById('modules-chart').toDataURL('image/png');
-                        const statusChartImg = document.getElementById('status-chart').toDataURL('image/png');
-                        doc.setFontSize(14);
-                        doc.setFont('helvetica', 'bold');
-                        doc.text('Resumo do Período', 14, 45);
-                        doc.setFont('helvetica', 'normal');
-                        doc.setFontSize(11);
-                        doc.text(`Valor Total: ${formatCurrency(totalValue)}`, 14, 52);
-                        doc.text(`Total Pendente: ${formatCurrency(totalPendingValue)}`, 14, 59);
-                        doc.text(`Total Efetuado: ${formatCurrency(totalPaidValue)}`, 14, 66);
-                        doc.addImage(modulesChartImg, 'PNG', 14, 80, 180, 90);
-                        doc.addPage();
-                        doc.addImage(statusChartImg, 'PNG', 14, 20, 180, 90);
-                        doc.save(`Relatorio_Dashboard_PONTAZO_BANK_${todayDate}.pdf`);
-                    } else {
-                        let query = _supabase.from('payments').select('*').eq('company_id', currentCompanyId);
-                        if (currentModule === 'CONTAS A PAGAR') {
-                            query = query.eq('status', 'Pendente');
-                        } else if (currentModule === 'PAGO') {
-                            query = query.eq('status', 'Pago');
-                        } else {
-                            query = query.eq('module', currentModule);
-                        }
-                        const { data } = await query;
-                        const total = data.reduce((sum, p) => sum + p.value, 0);
-                        doc.text(`Relatório de ${currentModule}`, 14, 30);
-                        doc.text(`Período: ${period}`, 14, 37);
-                        const head = [['Descrição', 'Valor', 'Vencimento', 'Prioridade', 'Status']];
-                        const body = data.map(p => [p.description, formatCurrency(p.value), formatDate(p.dueDate), p.priority, p.status]);
-                        doc.autoTable({
-                            head: head, body: body, startY: 45, theme: 'grid',
-                            foot: [['Total', formatCurrency(total), '', '', '']],
-                            footStyles: { fillColor: [22, 163, 74], fontStyle: 'bold' },
-                            headStyles: { fillColor: [30, 41, 59] }
-                        });
-                        doc.save(`Relatorio_${currentModule.replace(/\s/g, '_')}_PONTAZO_BANK_${todayDate}.pdf`);
-                    }
-                    hideLoader();
-                };
-
-                // --- LÓGICA DE TAGS ---
-                const fetchTags = async () => {
-                    const { data, error } = await _supabase.from('tags').select('id, name').eq('company_id', currentCompanyId).order('name');
-                    if (error) { console.error('Erro ao buscar tags:', error); return; }
-                    allTags = data;
-                    populateTagFilter();
-                    renderTagsInManageModal();
-                    populateTagsInPaymentModal();
-                };
-
-                const populateTagFilter = () => {
-                    tagFilter.innerHTML = '<option value="all">Todas as Tags</option>';
-                    allTags.forEach(tag => tagFilter.add(new Option(tag.name, tag.name)));
-                };
-                
-                const populateTagsInPaymentModal = () => {
-                    tagsSelect.innerHTML = '<option value="">Nenhuma</option>';
-                    allTags.forEach(tag => {
-                        tagsSelect.add(new Option(tag.name, tag.name));
-                    });
-                    document.getElementById('loan-tag').innerHTML = '<option value="">Nenhuma</option>';
-                    allTags.forEach(tag => document.getElementById('loan-tag').add(new Option(tag.name, tag.name)));
-                };
-
-                const renderTagsInManageModal = () => {
-                    tagsListContainer.innerHTML = '';
-                    allTags.forEach(tag => {
-                        const div = document.createElement('div');
-                        div.className = 'flex justify-between items-center p-2 bg-slate-700 rounded';
-                        div.textContent = tag.name;
-                        const deleteBtn = document.createElement('button');
-                        deleteBtn.innerHTML = '&times;';
-                        deleteBtn.className = 'ml-4 text-red-400 hover:text-red-200 font-bold text-xl';
-                        deleteBtn.onclick = () => {
-                            actionToConfirm = async () => {
-                                showLoader();
-                                const { error } = await _supabase.from('tags').delete().eq('id', tag.id);
-                                if (error) console.error("Erro ao excluir tag:", error);
-                                fetchTags();
-                                hideLoader();
-                            };
-                            confirmTitle.textContent = 'Confirmar Exclusão';
-                            confirmText.textContent = `Tem a certeza que deseja excluir a tag "${tag.name}"?`;
-                            confirmModal.style.display = 'flex';
+            renderTagsInManageModal() {
+                this.ui.tagsList.innerHTML = '';
+                this.state.allTags.forEach(tag => {
+                    const div = document.createElement('div');
+                    div.className = 'flex justify-between items-center p-2 bg-slate-700 rounded';
+                    div.textContent = tag.name;
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.innerHTML = '&times;';
+                    deleteBtn.className = 'ml-4 text-red-400 hover:text-red-200 font-bold text-xl';
+                    deleteBtn.onclick = () => {
+                        this.state.actionToConfirm = async () => {
+                            this.showLoader();
+                            await this.logAction('Delete Tag', { tagName: tag.name });
+                            const { error } = await this.supabase.from('tags').delete().eq('id', tag.id);
+                            if (error) console.error("Erro ao excluir tag:", error);
+                            this.fetchTags();
+                            this.hideLoader();
                         };
-                        div.appendChild(deleteBtn);
-                        tagsListContainer.appendChild(div);
-                    });
+                        this.ui.confirmTitle.textContent = 'Confirmar Exclusão';
+                        this.ui.confirmText.textContent = `Tem a certeza que deseja excluir a tag "${tag.name}"?`;
+                        this.ui.confirmModal.style.display = 'flex';
+                    };
+                    div.appendChild(deleteBtn);
+                    this.ui.tagsList.appendChild(div);
+                });
+            }
+
+            openModal(type) {
+                if (type === 'payment') this.ui.paymentModal.style.display = 'flex';
+                else if (type === 'loan') this.ui.loanModal.style.display = 'flex';
+            }
+            
+            closeModal(type) {
+                if (type === 'payment') {
+                    this.ui.paymentModal.style.display = 'none';
+                    this.ui.paymentForm.reset();
+                    this.ui.paymentId.value = '';
+                    this.ui.modalTitle.textContent = 'Adicionar Novo Pagamento';
+                    this.ui.recurringPaymentCheckbox.checked = false;
+                    this.ui.installmentsContainer.classList.add('hidden');
+                    this.ui.installments.value = '';
+                } else if (type === 'loan') {
+                    this.ui.loanModal.style.display = 'none';
+                    this.ui.loanForm.reset();
+                }
+            }
+            
+            applyFilters() {
+                this.state.currentPage = 1; 
+                this.state.selectedYear = this.ui.yearFilter.value;
+                this.state.selectedMonth = this.ui.monthFilter.value;
+                this.state.searchTerm = this.ui.searchInput.value;
+                this.state.selectedPriority = this.ui.priorityFilter.value;
+                this.state.selectedPaymentMethod = this.ui.paymentMethodFilter.value;
+                this.state.selectedTag = this.ui.tagFilter.value;
+                this.ui.monthFilter.disabled = this.state.selectedYear === 'all';
+                
+                if(this.state.currentModule === 'DASHBOARD' || this.state.currentModule === 'ADMIN') {
+                    this.updateUI();
+                } else if (this.state.currentModule === 'EMPRESTIMOS') {
+                    this.updateUI();
+                }
+                else {
+                    this.fetchPaginatedPayments();
+                }
+            }
+
+            async updateNotifications() {
+                if (!this.state.currentCompanyId) return;
+                const today = new Date().toISOString().slice(0, 10);
+                const sevenDaysFromNow = new Date();
+                sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
+                const sevenDaysISO = sevenDaysFromNow.toISOString().slice(0, 10);
+
+                const { data: overdue, error: overdueError } = await this.supabase.from('payments').select('description, dueDate').eq('company_id', this.state.currentCompanyId).eq('status', 'Pendente').lt('dueDate', today);
+                const { data: upcoming, error: upcomingError } = await this.supabase.from('payments').select('description, dueDate').eq('company_id', this.state.currentCompanyId).eq('status', 'Pendente').gte('dueDate', today).lte('dueDate', sevenDaysISO);
+                
+                if(overdueError || upcomingError) { console.error('Erro ao buscar notificações'); return; }
+
+                const totalNotifications = overdue.length + upcoming.length;
+                this.ui.notificationDropdown.innerHTML = '';
+
+                if (totalNotifications > 0) {
+                    this.ui.notificationBadge.textContent = totalNotifications;
+                    this.ui.notificationBadge.classList.remove('hidden');
+                    if (overdue.length > 0) {
+                        this.ui.notificationDropdown.innerHTML += `<div class="p-2 font-bold text-red-400 border-b border-slate-600">Vencidas (${overdue.length})</div>`;
+                        overdue.forEach(p => this.ui.notificationDropdown.innerHTML += `<div class="p-2 border-b border-slate-700"><strong>${p.description}</strong><br><span class="text-xs text-slate-400">Venceu em: ${this.formatDate(p.dueDate)}</span></div>`);
+                    }
+                    if (upcoming.length > 0) {
+                        this.ui.notificationDropdown.innerHTML += `<div class="p-2 font-bold text-amber-400 border-b border-slate-600">A Vencer (${upcoming.length})</div>`;
+                        upcoming.forEach(p => this.ui.notificationDropdown.innerHTML += `<div class="p-2 border-b border-slate-700"><strong>${p.description}</strong><br><span class="text-xs text-slate-400">Vence em: ${this.formatDate(p.dueDate)}</span></div>`);
+                    }
+                } else {
+                    this.ui.notificationBadge.classList.add('hidden');
+                    this.ui.notificationDropdown.innerHTML = `<div class="p-4 text-center text-slate-400">Nenhuma notificação.</div>`;
+                }
+            }
+            
+            async updateUI() {
+                this.updateActiveTab();
+                
+                const mainSections = [this.ui.summaryCards, this.ui.chartsSection, this.ui.moduleContent, this.ui.adminPanel];
+                mainSections.forEach(s => s.style.display = 'none');
+                this.ui.controlsSection.style.display = 'flex';
+
+                if (this.state.currentModule === 'DASHBOARD') {
+                    this.ui.summaryCards.style.display = 'grid';
+                    this.ui.chartsSection.style.display = 'grid';
+                    const dashboardData = await this.fetchAllFilteredDataForDashboard();
+                    this.updateDashboard(dashboardData);
+                } else if (this.state.currentModule === 'ADMIN') {
+                    this.ui.controlsSection.style.display = 'none';
+                    this.ui.adminPanel.style.display = 'block';
+                    this.renderAdminPanel();
+                } else if (this.state.currentModule === 'EMPRESTIMOS') {
+                    this.ui.summaryCards.style.display = 'grid';
+                    this.ui.moduleContent.style.display = 'block';
+                    this.ui.paymentsView.style.display = 'none';
+                    this.ui.loansView.style.display = 'grid';
+                    this.renderLoans();
+                } else {
+                    this.ui.summaryCards.style.display = 'grid';
+                    this.ui.moduleContent.style.display = 'block';
+                    this.ui.paymentsView.style.display = 'block';
+                    this.ui.loansView.style.display = 'none';
+                    this.renderTable(this.state.allPayments);
+                    this.updateModuleSummary(this.state.allPayments);
+                    this.updatePaginationControls();
+                }
+
+                this.ui.adminTabBtn.style.display = this.state.currentUser.isSuperAdmin ? 'block' : 'none';
+                this.checkPermissions();
+                this.updateNotifications();
+            }
+
+            updatePaginationControls() {
+                const totalPages = Math.ceil(this.state.totalItems / this.state.itemsPerPage);
+                this.ui.pageInfo.textContent = `Página ${this.state.currentPage} de ${totalPages || 1}`;
+                this.ui.prevPageBtn.disabled = this.state.currentPage === 1;
+                this.ui.nextPageBtn.disabled = this.state.currentPage === totalPages || totalPages === 0;
+            }
+
+            updateDashboard(payments) {
+                const totalValue = payments.reduce((sum, p) => sum + p.value, 0);
+                const totalPendingValue = payments.filter(p => p.status === 'Pendente').reduce((sum, p) => sum + p.value, 0);
+                const totalPaidValue = payments.filter(p => p.status === 'Pago').reduce((sum, p) => sum + p.value, 0);
+                this.ui.totalValue.textContent = this.formatCurrency(totalValue);
+                this.ui.pendingCount.textContent = this.formatCurrency(totalPendingValue);
+                this.ui.paidCount.textContent = this.formatCurrency(totalPaidValue);
+                this.renderModulesChart(payments);
+                this.renderStatusChart(payments);
+                this.renderTagsChart(payments);
+            }
+            
+            renderModulesChart(payments) {
+                const ctx = document.getElementById('modules-chart').getContext('2d');
+                const data = {
+                    labels: this.state.moduleNames,
+                    datasets: [{
+                        label: 'Custo Total',
+                        data: this.state.moduleNames.map(module => payments.filter(p => p.module === module).reduce((sum, p) => sum + p.value, 0)),
+                        backgroundColor: ['#06b6d4', '#0891b2', '#0e7490', '#155e75', '#164e63'],
+                        borderColor: '#1e293b', borderWidth: 2, borderRadius: 5,
+                    }]
+                };
+                if (this.state.modulesChartInstance) this.state.modulesChartInstance.destroy();
+                this.state.modulesChartInstance = new Chart(ctx, {
+                    type: 'bar', data: data,
+                    options: {
+                        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => this.formatCurrency(c.parsed.x) } } },
+                        scales: { y: { ticks: { color: '#94a3b8' }, grid: { display: false } }, x: { beginAtZero: true, ticks: { color: '#94a3b8' }, grid: { color: '#334155' }, title: { display: true, text: 'Valor (R$)', color: '#94a3b8' } } }
+                    }
+                });
+            }
+            
+            renderStatusChart(payments) {
+                const ctx = document.getElementById('status-chart').getContext('2d');
+                const paidValue = payments.filter(p => p.status === 'Pago').reduce((sum, p) => sum + p.value, 0);
+                const pendingValue = payments.filter(p => p.status === 'Pendente').reduce((sum, p) => sum + p.value, 0);
+                const data = {
+                    labels: ['Pago', 'Pendente'],
+                    datasets: [{ data: [paidValue, pendingValue], backgroundColor: ['#10B981', '#EF4444'], borderColor: '#1e293b', borderWidth: 4 }]
+                };
+                if (this.state.statusChartInstance) this.state.statusChartInstance.destroy();
+                this.state.statusChartInstance = new Chart(ctx, {
+                    type: 'doughnut', data: data,
+                    options: {
+                        responsive: true, maintainAspectRatio: false, cutout: '70%',
+                        plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8' } }, tooltip: { callbacks: { label: (c) => `${c.label}: ${this.formatCurrency(c.parsed)}` } } }
+                    }
+                });
+            }
+
+            renderTagsChart(payments) {
+                const ctx = document.getElementById('tags-chart').getContext('2d');
+                const tagsData = {};
+                payments.forEach(p => {
+                    if (p.tag) {
+                        if (!tagsData[p.tag]) tagsData[p.tag] = 0;
+                        tagsData[p.tag] += p.value;
+                    }
+                });
+                
+                const sortedTags = Object.entries(tagsData).sort(([,a],[,b]) => b-a).slice(0, 10);
+                const labels = sortedTags.map(item => item[0]);
+                const dataValues = sortedTags.map(item => item[1]);
+
+                const data = {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Custo por Tag',
+                        data: dataValues,
+                        backgroundColor: labels.map(label => this.stringToColor(label)),
+                        borderColor: '#1e293b', borderWidth: 4
+                    }]
+                };
+                if (this.state.tagsChartInstance) this.state.tagsChartInstance.destroy();
+                this.state.tagsChartInstance = new Chart(ctx, {
+                    type: 'doughnut', data: data,
+                    options: {
+                        responsive: true, maintainAspectRatio: false, cutout: '70%',
+                        plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8' } }, tooltip: { callbacks: { label: (c) => `${c.label}: ${this.formatCurrency(c.parsed)}` } } }
+                    }
+                });
+            }
+
+            updateModuleSummary(payments) {
+                const totalValue = payments.reduce((sum, p) => sum + p.value, 0);
+                const pendingCount = payments.filter(p => p.status === 'Pendente').length;
+                const paidCount = payments.length - pendingCount;
+                this.ui.totalValue.textContent = this.formatCurrency(totalValue);
+                this.ui.pendingCount.textContent = pendingCount;
+                this.ui.paidCount.textContent = paidCount;
+            }
+
+            renderTable(payments) {
+                this.ui.paymentTableBody.innerHTML = '';
+                this.ui.emptyState.style.display = payments.length === 0 ? 'block' : 'none';
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                payments.forEach(p => {
+                    const isOverdue = p.status === 'Pendente' && new Date(p.dueDate + 'T00:00:00') < today;
+                    const row = document.createElement('tr');
+                    row.className = 'hover:bg-slate-700/50 transition-colors';
+                    const tagHtml = p.tag ? `<span class="tag-badge" style="background-color: ${this.stringToColor(p.tag)}20; color: ${this.stringToColor(p.tag)};">${p.tag}</span>` : '';
+
+                    const authorizationStatus = p.authorization_status || 'Pendente';
+                    let authorizationBadgeClass = 'status-autorizacao-pendente';
+                    if (authorizationStatus === 'Autorizado') {
+                        authorizationBadgeClass = 'status-autorizado';
+                    } else if (authorizationStatus === 'Não Autorizado') {
+                        authorizationBadgeClass = 'status-nao-autorizado';
+                    }
+
+                    let actionButtons = `
+                        <button data-id="${p.id}" class="edit-btn text-cyan-400 hover:text-cyan-300 mx-2" title="Editar" data-permission="edit_payment"><i class="fas fa-pencil-alt"></i></button>
+                        <button data-id="${p.id}" class="delete-btn text-red-500 hover:text-red-400 mx-2" title="Excluir" data-permission="delete_payment"><i class="fas fa-trash-alt"></i></button>
+                    `;
+
+                    if (authorizationStatus === 'Pendente') {
+                        actionButtons += `
+                            <button data-id="${p.id}" class="authorize-btn text-green-500 hover:text-green-400 mx-2" title="Autorizar" data-permission="authorize_payment"><i class="fas fa-thumbs-up"></i></button>
+                            <button data-id="${p.id}" class="deny-btn text-red-500 hover:text-red-400 mx-2" title="Não Autorizar" data-permission="authorize_payment"><i class="fas fa-thumbs-down"></i></button>
+                        `;
+                    }
+
+                    if (authorizationStatus === 'Autorizado' && p.status === 'Pendente') {
+                        actionButtons += `<button data-id="${p.id}" class="toggle-status-btn text-green-500 hover:text-green-400 mx-2" title="Marcar como Pago" data-permission="pay_payment"><i class="fas fa-check-circle"></i></button>`;
+                    }
+
+                    row.innerHTML = `
+                        <td class="p-4 font-medium text-white">${p.description} ${p.attachment ? `<a href="${p.attachment}" target="_blank" class="text-cyan-400 hover:text-cyan-300" title="Ver Anexo"><i class="fas fa-paperclip ml-2"></i></a>` : ''}</td>
+                        <td class="p-4">${tagHtml}</td>
+                        <td class="p-4 font-medium text-white whitespace-nowrap">${this.formatCurrency(p.value)}</td>
+                        <td class="p-4 whitespace-nowrap ${isOverdue ? 'text-overdue' : ''}">${this.formatDate(p.dueDate)}</td>
+                        <td class="p-4 text-center"><span class="priority-badge priority-${p.priority.toLowerCase()}">${p.priority}</span></td>
+                        <td class="p-4 text-center"><span class="status-badge ${p.status === 'Pago' ? 'status-pago' : 'status-pendente'}">${p.status}</span></td>
+                        <td class="p-4 text-center"><span class="status-badge ${authorizationBadgeClass}">${authorizationStatus.replace(/_/g, ' ')}</span></td>
+                        <td class="p-4 text-center whitespace-nowrap">${actionButtons}</td>
+                    `;
+                    this.ui.paymentTableBody.appendChild(row);
+                });
+                this.addTableEventListeners();
+                this.checkPermissions();
+            }
+
+            async renderLoans() {
+                if (!this.state.currentCompanyId) return;
+                this.showLoader();
+                const { data: loans, error: loansError } = await this.supabase.from('loans').select('*').eq('company_id', this.state.currentCompanyId).order('created_at');
+                const { data: payments, error: paymentsError } = await this.supabase.from('payments').select('loan_id, status').eq('company_id', this.state.currentCompanyId);
+                this.hideLoader();
+
+                if (loansError || paymentsError) {
+                    console.error('Erro ao buscar empréstimos ou pagamentos:', loansError || paymentsError);
+                    this.ui.loansView.innerHTML = `<div class="lg:col-span-3 text-center p-12 text-slate-400"><p>Erro ao carregar empréstimos.</p></div>`;
+                    return;
+                }
+
+                this.ui.loansView.innerHTML = '';
+                if (loans.length === 0) {
+                    this.ui.loansView.innerHTML = `<div class="lg:col-span-3 text-center p-12 text-slate-400">
+                        <i class="fas fa-landmark fa-3x mb-4"></i>
+                        <p class="font-semibold">Nenhum empréstimo registado.</p>
+                    </div>`;
+                    return;
+                }
+
+                loans.forEach(loan => {
+                    const relatedPayments = payments.filter(p => p.loan_id === loan.id);
+                    const paidCount = relatedPayments.filter(p => p.status === 'Pago').length;
+                    const progress = (paidCount / loan.installments) * 100;
+                    const totalFinanced = loan.total_amount + (loan.valor_iof_rs || 0) + (loan.valor_tac_rs || 0);
+                    const installmentValue = totalFinanced / loan.installments;
+                    const remainingAmount = (loan.installments - paidCount) * installmentValue;
+
+                    const card = document.createElement('div');
+                    card.className = 'bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-lg flex flex-col justify-between';
+                    card.innerHTML = `
+                        <div>
+                            <div class="flex justify-between items-start">
+                                <h3 class="text-xl font-bold text-white mb-2">${loan.description}</h3>
+                                <div class="flex items-center gap-2">
+                                    <span class="status-badge ${loan.status === 'Quitado' ? 'status-pago' : 'status-pendente'}">${loan.status}</span>
+                                    <button data-id="${loan.id}" class="delete-loan-btn text-red-500 hover:text-red-400 text-lg" data-permission="delete_loan"><i class="fas fa-trash-alt"></i></button>
+                                </div>
+                            </div>
+                            <p class="text-slate-400">Valor Total: ${this.formatCurrency(loan.total_amount)}</p>
+                            <p class="text-slate-400">Saldo Devedor: ${this.formatCurrency(remainingAmount)}</p>
+                            <div class="text-xs text-slate-500 mt-2">
+                                <span>CET: ${loan.cet_am || 'N/A'}% a.m.</span> | 
+                                <span>Juros: ${loan.juros_nominais_am || 'N/A'}% a.m.</span>
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            <div class="flex justify-between items-center mb-1 text-sm">
+                                <span class="text-slate-300">Progresso</span>
+                                <span>${paidCount} / ${loan.installments} Parcelas</span>
+                            </div>
+                            <div class="w-full bg-slate-700 rounded-full h-2.5">
+                                <div class="bg-cyan-500 h-2.5 rounded-full" style="width: ${progress}%"></div>
+                            </div>
+                        </div>
+                    `;
+                    this.ui.loansView.appendChild(card);
+                });
+                this.addLoanEventListeners();
+                this.checkPermissions();
+            }
+
+            updateActiveTab() {
+                this.ui.moduleTabs.querySelectorAll('.tab-btn').forEach(tab => tab.classList.toggle('active', tab.dataset.module === this.state.currentModule));
+            }
+
+            addTableEventListeners() {
+                this.ui.paymentTableBody.addEventListener('click', (e) => {
+                    const target = e.target.closest('button');
+                    if (!target) return;
+
+                    const id = parseInt(target.dataset.id);
+                    const payment = this.state.allPayments.find(p => p.id === id);
+                    
+                    if (target.classList.contains('edit-btn')) {
+                        if (payment) {
+                            this.ui.modalTitle.textContent = 'Editar Pagamento';
+                            this.ui.paymentId.value = payment.id;
+                            this.ui.paymentForm.description.value = payment.description;
+                            this.ui.paymentForm.value.value = parseFloat(payment.value).toFixed(2).replace('.', ',');
+                            this.ui.paymentForm.date.value = payment.date;
+                            this.ui.paymentForm.dueDate.value = payment.dueDate;
+                            this.ui.paymentForm['payment-method'].value = payment.paymentMethod;
+                            this.ui.paymentForm.module.value = payment.module;
+                            this.ui.paymentForm.priority.value = payment.priority;
+                            this.ui.paymentForm.status.value = payment.status;
+                            this.ui.tagsSelect.value = payment.tag || '';
+                            this.ui.recurringPaymentSection.style.display = 'none';
+                            this.openModal('payment');
+                        }
+                    } else if (target.classList.contains('delete-btn')) {
+                        this.state.actionToConfirm = async () => {
+                            this.showLoader();
+                            await this.logAction('Delete Payment', { paymentId: id, description: payment.description });
+                            const { error } = await this.supabase.from('payments').delete().eq('id', id);
+                            if (error) console.error("Erro ao excluir pagamento:", error);
+                            this.applyFilters();
+                        };
+                        this.ui.confirmTitle.textContent = 'Confirmar Exclusão';
+                        this.ui.confirmText.textContent = 'Tem a certeza que deseja excluir este pagamento? Esta ação não pode ser desfeita.';
+                        this.ui.confirmModal.style.display = 'flex';
+                    } else if (target.classList.contains('toggle-status-btn')) {
+                         this.state.actionToConfirm = async () => {
+                            this.showLoader();
+                            await this.logAction('Mark as Paid', { paymentId: id, description: payment.description });
+                            const { error } = await this.supabase.from('payments').update({ status: 'Pago' }).eq('id', id);
+                            if (error) console.error("Erro ao marcar como pago:", error);
+                            this.fetchPaginatedPayments();
+                        };
+                        this.ui.confirmTitle.textContent = 'Confirmar Pagamento';
+                        this.ui.confirmText.textContent = 'Tem a certeza que deseja marcar este item como pago?';
+                        this.ui.confirmModal.style.display = 'flex';
+                    } else if (target.classList.contains('authorize-btn')) {
+                        this.state.actionToConfirm = async () => {
+                            this.showLoader();
+                            await this.logAction('Authorize Payment', { paymentId: id, description: payment.description });
+                            const { error } = await this.supabase.from('payments').update({ authorization_status: 'Autorizado' }).eq('id', id);
+                            if (error) console.error("Erro ao autorizar pagamento:", error);
+                            this.fetchPaginatedPayments();
+                        };
+                        this.ui.confirmTitle.textContent = 'Confirmar Autorização';
+                        this.ui.confirmText.textContent = 'Tem a certeza que deseja autorizar este pagamento?';
+                        this.ui.confirmModal.style.display = 'flex';
+                    } else if (target.classList.contains('deny-btn')) {
+                        this.state.actionToConfirm = async () => {
+                            this.showLoader();
+                            await this.logAction('Deny Payment', { paymentId: id, description: payment.description });
+                            const { error } = await this.supabase.from('payments').update({ authorization_status: 'Não Autorizado' }).eq('id', id);
+                            if (error) console.error("Erro ao não autorizar pagamento:", error);
+                            this.fetchPaginatedPayments();
+                        };
+                        this.ui.confirmTitle.textContent = 'Confirmar Rejeição';
+                        this.ui.confirmText.textContent = 'Tem a certeza que deseja não autorizar este pagamento?';
+                        this.ui.confirmModal.style.display = 'flex';
+                    }
+                });
+            }
+
+            addLoanEventListeners() {
+                this.ui.loansView.addEventListener('click', (e) => {
+                    const target = e.target.closest('.delete-loan-btn');
+                    if (!target) return;
+
+                    const id = parseInt(target.dataset.id);
+                    this.state.actionToConfirm = async () => {
+                        this.showLoader();
+                        await this.logAction('Delete Loan', { loanId: id });
+                        const { error: paymentsError } = await this.supabase.from('payments').delete().eq('loan_id', id);
+                        if (paymentsError) console.error("Erro ao excluir parcelas:", paymentsError);
+                        const { error: loanError } = await this.supabase.from('loans').delete().eq('id', id);
+                        if (loanError) console.error("Erro ao excluir empréstimo:", loanError);
+                        this.applyFilters();
+                    };
+                    this.ui.confirmTitle.textContent = 'Confirmar Exclusão de Empréstimo';
+                    this.ui.confirmText.textContent = 'Tem a certeza que deseja excluir este empréstimo e todas as suas parcelas?';
+                    this.ui.confirmModal.style.display = 'flex';
+                });
+            }
+            
+            renderAdminPanel() {
+                this.ui.userList.innerHTML = '';
+                this.state.staticUsers.forEach(user => {
+                    const div = document.createElement('div');
+                    div.className = 'flex justify-between items-center p-2 bg-slate-700 rounded';
+                    
+                    const nameSpan = document.createElement('span');
+                    nameSpan.textContent = user.username;
+                    div.appendChild(nameSpan);
+
+                    const buttonsDiv = document.createElement('div');
+                    
+                    const managePermissionsBtn = document.createElement('button');
+                    managePermissionsBtn.innerHTML = '<i class="fas fa-cog"></i>';
+                    managePermissionsBtn.className = 'text-cyan-400 hover:text-cyan-300 mx-2';
+                    managePermissionsBtn.title = 'Gerir Permissões';
+                    managePermissionsBtn.onclick = () => this.openPermissionsModal(user.username);
+                    buttonsDiv.appendChild(managePermissionsBtn);
+
+                    const manageWhatsAppBtn = document.createElement('button');
+                    manageWhatsAppBtn.innerHTML = '<i class="fab fa-whatsapp"></i>';
+                    manageWhatsAppBtn.className = 'text-green-400 hover:text-green-300 mx-2';
+                    manageWhatsAppBtn.title = 'Gerir Notificações WhatsApp';
+                    manageWhatsAppBtn.onclick = () => this.openWhatsAppModal(user.username);
+                    buttonsDiv.appendChild(manageWhatsAppBtn);
+
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
+                    deleteBtn.className = 'text-red-500 hover:text-red-400 mx-2';
+                    deleteBtn.title = 'Excluir Utilizador';
+                    deleteBtn.onclick = () => {
+                         this.state.actionToConfirm = async () => {
+                            this.showLoader();
+                            await this.logAction('Delete User', { deletedUsername: user.username });
+                            const { error } = await this.supabase.from('static_users').delete().eq('username', user.username);
+                            if (error) console.error("Erro ao excluir utilizador:", error);
+                            await this.loadStaticUsers();
+                            this.renderAdminPanel();
+                            this.hideLoader();
+                        };
+                        this.ui.confirmTitle.textContent = 'Confirmar Exclusão';
+                        this.ui.confirmText.textContent = `Tem a certeza que deseja excluir o utilizador "${user.username}"?`;
+                        this.ui.confirmModal.style.display = 'flex';
+                    };
+                    buttonsDiv.appendChild(deleteBtn);
+
+                    div.appendChild(buttonsDiv);
+                    this.ui.userList.appendChild(div);
+                });
+            }
+            
+            openPermissionsModal(username) {
+                const user = this.state.staticUsers.find(u => u.username === username);
+                if (!user) return;
+
+                this.ui.userPermissionsTitle.textContent = `Gerir Permissões: ${username}`;
+                this.ui.permissionUsername.value = username;
+
+                this.ui.permissionsCompanyList.innerHTML = '';
+                this.state.allSystemCompanies.forEach(company => {
+                    const id = `perm-company-${company.id}`;
+                    const label = document.createElement('label');
+                    label.className = 'flex items-center space-x-3 text-slate-300 cursor-pointer';
+                    label.htmlFor = id;
+                    
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.id = id;
+                    checkbox.value = company.id;
+                    checkbox.checked = user.companies.includes(company.id);
+                    checkbox.className = 'w-4 h-4 bg-slate-700 border-slate-600 rounded text-cyan-500 focus:ring-cyan-500';
+                    
+                    const nameSpan = document.createElement('span');
+                    nameSpan.textContent = company.name;
+
+                    label.appendChild(checkbox);
+                    label.appendChild(nameSpan);
+                    this.ui.permissionsCompanyList.appendChild(label);
+                });
+
+                const permissionDetails = {
+                    'Pagamentos': {
+                        'create_payment': { title: 'Criar Pagamento', description: 'Permite ao utilizador registar novas contas a pagar.' },
+                        'edit_payment': { title: 'Editar Pagamento', description: 'Permite ao utilizador modificar informações de pagamentos existentes.' },
+                        'delete_payment': { title: 'Excluir Pagamento', description: 'Permite ao utilizador remover permanentemente um registo de pagamento.' },
+                        'authorize_payment': { title: 'Autorizar Pagamento', description: 'Permite ao utilizador aprovar ou rejeitar um pagamento pendente.' },
+                        'pay_payment': { title: 'Efetuar Pagamento', description: 'Permite ao utilizador marcar um pagamento autorizado como "Pago".' },
+                    },
+                    'Empréstimos': {
+                        'create_loan': { title: 'Criar Empréstimo', description: 'Permite ao utilizador registar novos empréstimos e gerar as suas parcelas.' },
+                        'delete_loan': { title: 'Excluir Empréstimo', description: 'Permite ao utilizador remover um empréstimo e todas as suas parcelas.' },
+                    },
+                    'Geral': {
+                        'manage_tags': { title: 'Gerir Tags', description: 'Permite ao utilizador criar e excluir tags para organizar os pagamentos.' },
+                    }
                 };
 
-                // --- EVENT LISTENERS ---
-                paymentForm.addEventListener('submit', async (e) => {
+                this.ui.permissionsActionList.innerHTML = '';
+                for (const groupName in permissionDetails) {
+                    const groupTitle = document.createElement('h4');
+                    groupTitle.className = 'text-md font-semibold text-slate-300 mt-4 mb-2';
+                    groupTitle.textContent = groupName;
+                    this.ui.permissionsActionList.appendChild(groupTitle);
+
+                    const groupPermissions = permissionDetails[groupName];
+                    for (const permKey in groupPermissions) {
+                        const permInfo = groupPermissions[permKey];
+                        const id = `perm-action-${permKey}`;
+
+                        const container = document.createElement('div');
+                        container.className = 'flex items-start space-x-3 p-3 bg-slate-700/50 rounded-lg';
+
+                        const checkbox = document.createElement('input');
+                        checkbox.type = 'checkbox';
+                        checkbox.id = id;
+                        checkbox.value = permKey;
+                        checkbox.checked = user.permissions.includes(permKey);
+                        checkbox.className = 'w-4 h-4 bg-slate-600 border-slate-500 rounded text-cyan-500 focus:ring-cyan-500 mt-1 flex-shrink-0';
+                        
+                        const textContainer = document.createElement('div');
+                        
+                        const label = document.createElement('label');
+                        label.htmlFor = id;
+                        label.className = 'font-semibold text-slate-200 cursor-pointer';
+                        label.textContent = permInfo.title;
+
+                        const description = document.createElement('p');
+                        description.className = 'text-sm text-slate-400';
+                        description.textContent = permInfo.description;
+
+                        textContainer.appendChild(label);
+                        textContainer.appendChild(description);
+                        container.appendChild(checkbox);
+                        container.appendChild(textContainer);
+                        this.ui.permissionsActionList.appendChild(container);
+                    }
+                }
+
+                this.ui.userPermissionsModal.style.display = 'flex';
+            }
+            
+            openWhatsAppModal(username) {
+                const user = this.state.staticUsers.find(u => u.username === username);
+                if (!user) return;
+
+                this.ui.whatsappNotificationsTitle.textContent = `Notificações para: ${username}`;
+                this.ui.whatsappUsername.value = username;
+
+                this.ui.whatsappNumber.value = user.whatsapp_number || '';
+                this.ui.whatsappNotifyUpcoming.checked = user.whatsapp_notifications?.includes('upcoming') || false;
+                this.ui.whatsappNotifyOverdue.checked = user.whatsapp_notifications?.includes('overdue') || false;
+
+                this.ui.whatsappNotificationsModal.style.display = 'flex';
+            }
+
+            async fetchAllFilteredDataForExport() {
+                if (!this.state.currentCompanyId) return [];
+                this.showLoader();
+                let query = this.supabase.from('payments').select('*').eq('company_id', this.state.currentCompanyId);
+
+                if (this.state.currentModule === 'PAGO') {
+                    query = query.eq('status', 'Pago');
+                } else if (this.state.currentModule === 'CONTAS A PAGAR') {
+                    query = query.eq('status', 'Pendente');
+                } else if (this.state.currentModule !== 'DASHBOARD' && this.state.currentModule !== 'EMPRESTIMOS' && this.state.currentModule !== 'ADMIN') {
+                    query = query.eq('module', this.state.currentModule);
+                }
+
+                if (this.state.searchTerm) query = query.ilike('description', `%${this.state.searchTerm}%`);
+                if (this.state.selectedPriority !== 'all') query = query.eq('priority', this.state.selectedPriority);
+                if (this.state.selectedPaymentMethod !== 'all') query = query.eq('paymentMethod', this.state.selectedPaymentMethod);
+                if (this.state.selectedTag !== 'all') query = query.eq('tag', this.state.selectedTag);
+                
+                if (this.state.selectedYear !== 'all') {
+                    const startDate = `${this.state.selectedYear}-01-01`;
+                    const endDate = `${this.state.selectedYear}-12-31`;
+                    if (this.state.selectedMonth !== 'all') {
+                        const monthStartDate = new Date(this.state.selectedYear, this.state.selectedMonth, 1).toISOString().slice(0,10);
+                        const monthEndDate = new Date(this.state.selectedYear, parseInt(this.state.selectedMonth) + 1, 0).toISOString().slice(0,10);
+                        query = query.gte('date', monthStartDate).lte('date', monthEndDate);
+                    } else {
+                        query = query.gte('date', startDate).lte('date', endDate);
+                    }
+                }
+                
+                query = query.order('dueDate', { ascending: true });
+                const { data, error } = await query;
+                this.hideLoader();
+
+                if (error) {
+                    console.error('Erro ao buscar dados para exportação:', error);
+                    return [];
+                }
+                return data;
+            }
+
+            async exportToCSV() {
+                await this.logAction('Export to CSV');
+                const payments = await this.fetchAllFilteredDataForExport();
+                if (payments.length === 0) {
+                    // Use a custom modal in a real app
+                    alert('Nenhum dado para exportar com os filtros atuais.');
+                    return;
+                }
+
+                const headers = [
+                    'ID', 'Descricao', 'Valor', 'Data Lancamento', 'Data Vencimento', 
+                    'Modulo', 'Prioridade', 'Status', 'Status Autorizacao', 
+                    'Metodo Pagamento', 'Tag', 'ID Emprestimo'
+                ];
+                
+                const csvRows = [headers.join(',')];
+
+                for (const p of payments) {
+                    const values = [
+                        p.id,
+                        `"${(p.description || '').replace(/"/g, '""')}"`,
+                        p.value,
+                        p.date,
+                        p.dueDate,
+                        p.module,
+                        p.priority,
+                        p.status,
+                        p.authorization_status || 'Pendente',
+                        p.paymentMethod || '',
+                        p.tag || '',
+                        p.loan_id || ''
+                    ];
+                    csvRows.push(values.join(','));
+                }
+
+                const csvString = csvRows.join('\n');
+                const blob = new Blob([`\uFEFF${csvString}`], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                if (link.download !== undefined) {
+                    const url = URL.createObjectURL(blob);
+                    link.setAttribute('href', url);
+                    link.setAttribute('download', 'exportacao_pagamentos.csv');
+                    link.style.visibility = 'hidden';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                }
+            }
+            
+            // NOVO: Função para exportar para PDF
+            async exportToPDF() {
+                await this.logAction('Export to PDF');
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                const payments = await this.fetchAllFilteredDataForExport();
+
+                if (payments.length === 0) {
+                    alert('Nenhum dado para exportar com os filtros atuais.');
+                    return;
+                }
+
+                const companyName = this.ui.companySelector.options[this.ui.companySelector.selectedIndex].text;
+                const title = `Relatório de Pagamentos - ${companyName}`;
+                doc.text(title, 14, 16);
+
+                const head = [['Descrição', 'Valor', 'Vencimento', 'Status', 'Módulo', 'Tag']];
+                const body = payments.map(p => [
+                    p.description,
+                    this.formatCurrency(p.value),
+                    this.formatDate(p.dueDate),
+                    p.status,
+                    p.module,
+                    p.tag || 'N/A'
+                ]);
+
+                doc.autoTable({
+                    head: head,
+                    body: body,
+                    startY: 22,
+                    theme: 'grid',
+                    styles: {
+                        fontSize: 8
+                    },
+                    headStyles: {
+                        fillColor: [15, 23, 42] // slate-900
+                    }
+                });
+
+                doc.save('relatorio_pagamentos.pdf');
+            }
+
+            async logAction(action, details = {}) {
+                try {
+                    const logEntry = {
+                        username: this.state.currentUser?.username || 'system',
+                        action: action,
+                        details: details,
+                        company_id: this.state.currentCompanyId || null
+                    };
+                    const { error } = await this.supabase.from('audit_log').insert([logEntry]);
+                    if (error) {
+                        console.error('Error logging action:', error);
+                    }
+                } catch (err) {
+                    console.error('Failed to log action:', err);
+                }
+            }
+
+            async viewAuditLog() {
+                this.showLoader();
+                const selectedDate = this.ui.logDateFilter.value;
+                if (!selectedDate) {
+                    alert('Por favor, selecione uma data para ver o log.');
+                    this.hideLoader();
+                    return;
+                }
+
+                let query = this.supabase.from('audit_log')
+                    .select('*')
+                    .eq('company_id', this.state.currentCompanyId)
+                    .order('created_at', { ascending: false });
+
+                const startDate = `${selectedDate}T00:00:00.000Z`;
+                const endDate = `${selectedDate}T23:59:59.999Z`;
+                query = query.gte('created_at', startDate).lte('created_at', endDate);
+
+                const { data, error } = await query;
+                this.hideLoader();
+
+                if (error) {
+                    console.error('Error fetching audit log:', error);
+                    alert('Falha ao carregar o log de atividades.');
+                    return;
+                }
+
+                this.ui.auditLogContent.innerHTML = '';
+                if (data.length === 0) {
+                    this.ui.auditLogContent.innerHTML = '<p class="text-slate-400 text-center">Nenhuma atividade registada para esta data.</p>';
+                } else {
+                    data.forEach(log => {
+                        const logDiv = document.createElement('div');
+                        logDiv.className = 'p-3 mb-2 bg-slate-700/50 rounded-lg';
+                        const detailsString = JSON.stringify(log.details, null, 2);
+                        logDiv.innerHTML = `
+                            <p class="font-semibold text-white">${log.action}</p>
+                            <p class="text-sm text-slate-300">Utilizador: <span class="font-medium text-cyan-400">${log.username}</span></p>
+                            <p class="text-sm text-slate-300">Data: ${this.formatDate(log.created_at, true)}</p>
+                            <details class="mt-2 text-xs text-slate-400">
+                                <summary class="cursor-pointer">Detalhes</summary>
+                                <pre class="mt-1 p-2 bg-slate-900 rounded">${detailsString}</pre>
+                            </details>
+                        `;
+                        this.ui.auditLogContent.appendChild(logDiv);
+                    });
+                }
+                this.ui.auditLogModal.style.display = 'flex';
+            }
+
+            async generateBackup() {
+                if (!this.state.currentCompanyId) {
+                    alert('Por favor, selecione uma empresa primeiro.');
+                    return;
+                }
+                this.showLoader();
+                await this.logAction('Generate Backup');
+
+                try {
+                    const company = this.state.allSystemCompanies.find(c => c.id === this.state.currentCompanyId);
+                    if (!company) throw new Error('Empresa não encontrada.');
+
+                    const tablesToBackup = ['payments', 'loans', 'tags'];
+                    const backupData = {};
+
+                    for (const tableName of tablesToBackup) {
+                        const { data, error } = await this.supabase
+                            .from(tableName)
+                            .select('*')
+                            .eq('company_id', this.state.currentCompanyId);
+                        
+                        if (error) throw new Error(`Erro ao fazer backup da tabela ${tableName}: ${error.message}`);
+                        backupData[tableName] = data;
+                    }
+
+                    const jsonString = JSON.stringify(backupData, null, 2);
+                    const blob = new Blob([jsonString], { type: 'application/json' });
+                    const link = document.createElement('a');
+
+                    const date = new Date().toISOString().slice(0, 10);
+                    link.href = URL.createObjectURL(blob);
+                    link.download = `backup-${company.name.replace(/\s+/g, '_')}-${date}.json`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+
+                } catch (error) {
+                    console.error('Falha no backup:', error);
+                    alert(`Falha no backup: ${error.message}`);
+                } finally {
+                    this.hideLoader();
+                }
+            }
+
+
+            addEventListeners() {
+                this.ui.logoutBtn.addEventListener('click', async () => {
+                    await this.logAction('Logout');
+                    location.reload();
+                });
+                
+                this.ui.companySelector.addEventListener('change', (e) => {
+                    this.state.currentCompanyId = parseInt(e.target.value);
+                    this.applyFilters();
+                });
+
+                this.ui.moduleTabs.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('tab-btn')) {
+                        this.state.currentModule = e.target.dataset.module;
+                        this.applyFilters();
+                    }
+                });
+
+                [this.ui.yearFilter, this.ui.monthFilter, this.ui.searchInput, this.ui.priorityFilter, this.ui.paymentMethodFilter, this.ui.tagFilter].forEach(el => {
+                    el.addEventListener('change', () => this.applyFilters());
+                    if (el.tagName === 'INPUT') el.addEventListener('keyup', () => this.applyFilters());
+                });
+
+                this.ui.exportPdfBtn.addEventListener('click', () => this.exportToPDF());
+                this.ui.exportCsvBtn.addEventListener('click', () => this.exportToCSV());
+                this.ui.manageTagsBtn.addEventListener('click', () => this.ui.manageTagsModal.style.display = 'flex');
+                this.ui.closeTagsModalBtn.addEventListener('click', () => this.ui.manageTagsModal.style.display = 'none');
+                
+                // --- Dropdown Logic ---
+                this.ui.addBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.ui.notificationDropdown.classList.add('hidden');
+                    this.ui.addDropdown.classList.toggle('hidden');
+                });
+
+                this.ui.notificationBell.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.ui.addDropdown.classList.add('hidden');
+                    this.ui.notificationDropdown.classList.toggle('hidden');
+                });
+
+                window.addEventListener('click', () => {
+                    this.ui.addDropdown.classList.add('hidden');
+                    this.ui.notificationDropdown.classList.add('hidden');
+                });
+
+                this.ui.addPaymentBtn.addEventListener('click', () => {
+                    this.ui.modalTitle.textContent = 'Adicionar Novo Pagamento';
+                    const formModuleSelect = this.ui.paymentForm.module;
+                    if (this.state.currentModule !== 'DASHBOARD' && this.state.currentModule !== 'CONTAS A PAGAR' && this.state.currentModule !== 'EMPRESTIMOS' && this.state.currentModule !== 'PAGO' && this.state.currentModule !== 'ADMIN') {
+                        formModuleSelect.value = this.state.currentModule;
+                    } else {
+                        formModuleSelect.value = this.state.moduleNames[0];
+                    }
+                    const today = new Date().toISOString().split('T')[0];
+                    this.ui.paymentForm.date.value = today;
+                    this.ui.paymentForm.dueDate.value = today;
+                    this.ui.recurringPaymentSection.style.display = 'block';
+                    this.openModal('payment');
+                });
+                
+                this.ui.addLoanBtn.addEventListener('click', () => this.openModal('loan'));
+                this.ui.cancelLoanBtn.addEventListener('click', () => this.closeModal('loan'));
+                this.ui.cancelBtn.addEventListener('click', () => this.closeModal('payment'));
+                this.ui.paymentModal.addEventListener('click', (e) => { if (e.target === this.ui.paymentModal) this.closeModal('payment'); });
+                this.ui.loanModal.addEventListener('click', (e) => { if (e.target === this.ui.loanModal) this.closeModal('loan'); });
+                
+                this.ui.recurringPaymentCheckbox.addEventListener('change', () => {
+                    this.ui.installmentsContainer.classList.toggle('hidden', !this.ui.recurringPaymentCheckbox.checked);
+                    if (!this.ui.recurringPaymentCheckbox.checked) {
+                        this.ui.installments.value = '';
+                    }
+                });
+
+                this.ui.cancelConfirmBtn.addEventListener('click', () => {
+                    this.ui.confirmModal.style.display = 'none';
+                    this.state.actionToConfirm = null;
+                });
+
+                this.ui.confirmBtn.addEventListener('click', async () => {
+                    if (typeof this.state.actionToConfirm === 'function') {
+                        await this.state.actionToConfirm();
+                    }
+                    this.ui.confirmModal.style.display = 'none';
+                    this.state.actionToConfirm = null;
+                });
+
+                this.ui.addTagForm.addEventListener('submit', async (e) => {
                     e.preventDefault();
-                    showLoader();
-                    const formData = new FormData(paymentForm);
+                    const newTagName = this.ui.newTagName.value.trim();
+                    if (newTagName && !this.state.allTags.some(t => t.name.toLowerCase() === newTagName.toLowerCase())) {
+                        this.showLoader();
+                        await this.logAction('Create Tag', { tagName: newTagName });
+                        const { error } = await this.supabase.from('tags').insert([{ name: newTagName, company_id: this.state.currentCompanyId }]);
+                        this.hideLoader();
+                        if (error) console.error('Erro ao adicionar tag:', error);
+                        else {
+                            this.ui.newTagName.value = '';
+                            this.fetchTags();
+                        }
+                    }
+                });
+
+                this.ui.paymentForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    this.showLoader();
+                    const formData = new FormData(this.ui.paymentForm);
                     const id = formData.get('payment-id');
-                    const isRecurring = recurringPaymentCheckbox.checked;
-                    const numberOfInstallments = parseInt(installmentsInput.value);
-                    const attachmentFile = document.getElementById('attachment').files[0];
-                    let attachmentUrl = id ? allPayments.find(p => p.id == id).attachment : null;
+                    const isRecurring = this.ui.recurringPaymentCheckbox.checked;
+                    const numberOfInstallments = parseInt(this.ui.installments.value);
+                    const attachmentFile = this.ui.paymentForm.attachment.files[0];
+                    let attachmentUrl = id ? this.state.allPayments.find(p => p.id == id).attachment : null;
 
                     if (attachmentFile) {
-                        const filePath = `${currentCompanyId}/${Date.now()}-${attachmentFile.name}`;
-                        const { error: uploadError } = await _supabase.storage.from('comprovativos').upload(filePath, attachmentFile);
-                        if (uploadError) { console.error('Erro no upload do anexo:', uploadError); alert('Falha ao enviar o anexo.'); hideLoader(); return; }
-                        const { data: urlData } = _supabase.storage.from('comprovativos').getPublicUrl(filePath);
+                        const filePath = `${this.state.currentCompanyId}/${Date.now()}-${attachmentFile.name}`;
+                        const { error: uploadError } = await this.supabase.storage.from('comprovativos').upload(filePath, attachmentFile);
+                        if (uploadError) { console.error('Erro no upload do anexo:', uploadError); alert('Falha ao enviar o anexo.'); this.hideLoader(); return; }
+                        const { data: urlData } = this.supabase.storage.from('comprovativos').getPublicUrl(filePath);
                         attachmentUrl = urlData.publicUrl;
                     }
 
                     if (id || !isRecurring || !numberOfInstallments || numberOfInstallments < 2) {
                         const paymentData = {
                             description: formData.get('description'),
-                            value: parseCurrency(formData.get('value').toString()),
+                            value: this.parseCurrency(formData.get('value').toString()),
                             paymentMethod: formData.get('payment-method'),
                             module: formData.get('module'),
                             priority: formData.get('priority'),
@@ -1190,21 +1861,23 @@
                             tag: formData.get('tag') || null,
                             date: formData.get('date'),
                             dueDate: formData.get('dueDate'),
-                            company_id: currentCompanyId
+                            company_id: this.state.currentCompanyId
                         };
                         if (id) {
-                            const { error } = await _supabase.from('payments').update(paymentData).eq('id', id);
+                            await this.logAction('Update Payment', { paymentId: id, ...paymentData });
+                            const { error } = await this.supabase.from('payments').update(paymentData).eq('id', id);
                             if (error) console.error("Erro ao atualizar:", error);
                         } else {
                             paymentData.authorization_status = 'Pendente';
-                            const { error } = await _supabase.from('payments').insert([paymentData]);
+                            await this.logAction('Create Payment', paymentData);
+                            const { error } = await this.supabase.from('payments').insert([paymentData]);
                             if (error) console.error("Erro ao inserir:", error);
                         }
                     } else {
                         const paymentsToInsert = [];
                         const baseDescription = formData.get('description');
                         const firstDueDate = new Date(formData.get('dueDate') + 'T00:00:00');
-                        const rawValue = parseCurrency(formData.get('value').toString());
+                        const rawValue = this.parseCurrency(formData.get('value').toString());
 
                         for (let i = 0; i < numberOfInstallments; i++) {
                             const currentDueDate = new Date(firstDueDate);
@@ -1221,225 +1894,51 @@
                                 tag: formData.get('tag') || null,
                                 date: formData.get('date'),
                                 dueDate: currentDueDate.toISOString().slice(0,10),
-                                company_id: currentCompanyId,
+                                company_id: this.state.currentCompanyId,
                                 authorization_status: 'Pendente'
                             };
                             paymentsToInsert.push(paymentData);
                         }
-                        const { error } = await _supabase.from('payments').insert(paymentsToInsert);
+                        await this.logAction('Create Recurring Payment', { description: baseDescription, installments: numberOfInstallments });
+                        const { error } = await this.supabase.from('payments').insert(paymentsToInsert);
                         if (error) console.error("Erro ao inserir pagamentos recorrentes:", error);
                     }
                     
-                    closeModal('payment');
-                    applyFilters();
-                });
-                
-                moduleTabsContainer.addEventListener('click', (e) => {
-                    if (e.target.classList.contains('tab-btn')) {
-                        currentModule = e.target.dataset.module;
-                        applyFilters();
-                    }
+                    this.closeModal('payment');
+                    this.applyFilters();
                 });
 
-                const addTableEventListeners = () => {
-                    document.querySelectorAll('.edit-btn').forEach(btn => {
-                        btn.addEventListener('click', (e) => {
-                            const id = parseInt(e.currentTarget.dataset.id);
-                            const payment = allPayments.find(p => p.id === id);
-                            if (payment) {
-                                modalTitle.textContent = 'Editar Pagamento';
-                                paymentIdInput.value = payment.id;
-                                document.getElementById('date').value = payment.date;
-                                document.getElementById('dueDate').value = payment.dueDate;
-                                document.getElementById('description').value = payment.description;
-                                document.getElementById('value').value = parseFloat(payment.value).toFixed(2).replace('.', ',');
-                                document.getElementById('payment-method').value = payment.paymentMethod;
-                                document.getElementById('module').value = payment.module;
-                                document.getElementById('priority').value = payment.priority;
-                                document.getElementById('status').value = payment.status;
-                                document.getElementById('tags-select').value = payment.tag || '';
-                                recurringPaymentSection.style.display = 'none';
-                                openModal('payment');
-                            }
-                        });
-                    });
-
-                    document.querySelectorAll('.delete-btn').forEach(btn => {
-                        btn.addEventListener('click', (e) => {
-                            const id = parseInt(e.currentTarget.dataset.id);
-                            actionToConfirm = async () => {
-                                showLoader();
-                                const { error } = await _supabase.from('payments').delete().eq('id', id);
-                                if (error) console.error("Erro ao excluir pagamento:", error);
-                                applyFilters();
-                            };
-                            confirmTitle.textContent = 'Confirmar Exclusão';
-                            confirmText.textContent = 'Tem a certeza que deseja excluir este pagamento? Esta ação não pode ser desfeita.';
-                            confirmModal.style.display = 'flex';
-                        });
-                    });
-
-                    document.querySelectorAll('.toggle-status-btn').forEach(btn => {
-                        btn.addEventListener('click', async (e) => {
-                            const id = parseInt(e.currentTarget.dataset.id);
-                            actionToConfirm = async () => {
-                                showLoader();
-                                const { error } = await _supabase.from('payments').update({ status: 'Pago' }).eq('id', id);
-                                if (error) console.error("Erro ao marcar como pago:", error);
-                                fetchPaginatedPayments();
-                            };
-                            confirmTitle.textContent = 'Confirmar Pagamento';
-                            confirmText.textContent = 'Tem a certeza que deseja marcar este item como pago?';
-                            confirmModal.style.display = 'flex';
-                        });
-                    });
-
-                    document.querySelectorAll('.authorize-btn').forEach(btn => {
-                        btn.addEventListener('click', (e) => {
-                            const id = parseInt(e.currentTarget.dataset.id);
-                            actionToConfirm = async () => {
-                                showLoader();
-                                const { error } = await _supabase.from('payments').update({ authorization_status: 'Autorizado' }).eq('id', id);
-                                if (error) console.error("Erro ao autorizar pagamento:", error);
-                                fetchPaginatedPayments();
-                            };
-                            confirmTitle.textContent = 'Confirmar Autorização';
-                            confirmText.textContent = 'Tem a certeza que deseja autorizar este pagamento?';
-                            confirmModal.style.display = 'flex';
-                        });
-                    });
-
-                    document.querySelectorAll('.deny-btn').forEach(btn => {
-                        btn.addEventListener('click', (e) => {
-                            const id = parseInt(e.currentTarget.dataset.id);
-                            actionToConfirm = async () => {
-                                showLoader();
-                                const { error } = await _supabase.from('payments').update({ authorization_status: 'Não Autorizado' }).eq('id', id);
-                                if (error) console.error("Erro ao não autorizar pagamento:", error);
-                                fetchPaginatedPayments();
-                            };
-                            confirmTitle.textContent = 'Confirmar Rejeição';
-                            confirmText.textContent = 'Tem a certeza que deseja não autorizar este pagamento?';
-                            confirmModal.style.display = 'flex';
-                        });
-                    });
-                };
-
-                const addLoanEventListeners = () => {
-                    document.querySelectorAll('.delete-loan-btn').forEach(btn => {
-                        btn.addEventListener('click', (e) => {
-                            const id = parseInt(e.currentTarget.dataset.id);
-                            actionToConfirm = async () => {
-                                showLoader();
-                                const { error: paymentsError } = await _supabase.from('payments').delete().eq('loan_id', id);
-                                if (paymentsError) console.error("Erro ao excluir parcelas:", paymentsError);
-                                const { error: loanError } = await _supabase.from('loans').delete().eq('id', id);
-                                if (loanError) console.error("Erro ao excluir empréstimo:", loanError);
-                                applyFilters();
-                            };
-                            confirmTitle.textContent = 'Confirmar Exclusão de Empréstimo';
-                            confirmText.textContent = 'Tem a certeza que deseja excluir este empréstimo e todas as suas parcelas?';
-                            confirmModal.style.display = 'flex';
-                        });
-                    });
-                };
-
-                addBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    addDropdown.classList.toggle('hidden');
-                });
-                window.addEventListener('click', () => addDropdown.classList.add('hidden'));
-
-                addPaymentBtn.addEventListener('click', () => {
-                    modalTitle.textContent = 'Adicionar Novo Pagamento';
-                    const formModuleSelect = document.getElementById('module');
-                    if (currentModule !== 'DASHBOARD' && currentModule !== 'CONTAS A PAGAR' && currentModule !== 'EMPRESTIMOS' && currentModule !== 'PAGO') {
-                        formModuleSelect.value = currentModule;
-                    } else {
-                        formModuleSelect.value = moduleNames[0];
-                    }
-                    const today = new Date().toISOString().split('T')[0];
-                    document.getElementById('date').value = today;
-                    document.getElementById('dueDate').value = today;
-                    recurringPaymentSection.style.display = 'block';
-                    openModal('payment');
-                });
-                
-                addLoanBtn.addEventListener('click', () => openModal('loan'));
-                cancelLoanBtn.addEventListener('click', () => closeModal('loan'));
-                
-                cancelBtn.addEventListener('click', () => closeModal('payment'));
-                paymentModal.addEventListener('click', (e) => { if (e.target === paymentModal) closeModal('payment'); });
-                loanModal.addEventListener('click', (e) => { if (e.target === loanModal) closeModal('loan'); });
-                
-                recurringPaymentCheckbox.addEventListener('change', () => {
-                    installmentsContainer.classList.toggle('hidden', !recurringPaymentCheckbox.checked);
-                    if (!recurringPaymentCheckbox.checked) {
-                        installmentsInput.value = '';
-                    }
-                });
-
-                // Listeners do Modal de Confirmação
-                cancelConfirmBtn.addEventListener('click', () => {
-                    confirmModal.style.display = 'none';
-                    actionToConfirm = null;
-                });
-
-                confirmBtn.addEventListener('click', async () => {
-                    if (typeof actionToConfirm === 'function') {
-                        await actionToConfirm();
-                    }
-                    confirmModal.style.display = 'none';
-                    actionToConfirm = null;
-                });
-
-                // Listeners de Gestão de Tags
-                manageTagsBtn.addEventListener('click', () => manageTagsModal.style.display = 'flex');
-                closeTagsModalBtn.addEventListener('click', () => manageTagsModal.style.display = 'none');
-                addTagForm.addEventListener('submit', async (e) => {
+                this.ui.loanForm.addEventListener('submit', async(e) => {
                     e.preventDefault();
-                    const newTagName = newTagNameInput.value.trim();
-                    if (newTagName && !allTags.some(t => t.name.toLowerCase() === newTagName.toLowerCase())) {
-                        showLoader();
-                        const { error } = await _supabase.from('tags').insert([{ name: newTagName, company_id: currentCompanyId }]);
-                        hideLoader();
-                        if (error) console.error('Erro ao adicionar tag:', error);
-                        else {
-                            newTagNameInput.value = '';
-                            fetchTags();
-                        }
-                    }
-                });
+                    this.showLoader();
+                    const description = this.ui.loanForm['loan-description'].value;
+                    const totalAmount = this.parseCurrency(this.ui.loanForm['loan-amount'].value);
+                    const installments = parseInt(this.ui.loanForm['loan-installments'].value);
+                    const startDate = this.ui.loanForm['loan-start-date'].value;
+                    const tag = this.ui.loanForm['loan-tag'].value || null;
+                    const gracePeriod = parseInt(this.ui.loanForm['loan-grace-period'].value) || 0;
+                    const iof = this.parseCurrency(this.ui.loanForm['loan-iof'].value) || 0;
+                    const tac = this.parseCurrency(this.ui.loanForm['loan-tac'].value) || 0;
+                    const cet = this.parseCurrency(this.ui.loanForm['loan-cet'].value) || 0;
+                    const nominalInterest = this.parseCurrency(this.ui.loanForm['loan-nominal-interest'].value) || 0;
+                    const otherCharges = this.parseCurrency(this.ui.loanForm['loan-other-charges'].value) || 0;
 
-                loanForm.addEventListener('submit', async(e) => {
-                    e.preventDefault();
-                    showLoader();
-                    const description = document.getElementById('loan-description').value;
-                    const totalAmount = parseCurrency(document.getElementById('loan-amount').value);
-                    const installments = parseInt(document.getElementById('loan-installments').value);
-                    const startDate = document.getElementById('loan-start-date').value;
-                    const tag = document.getElementById('loan-tag').value || null;
-                    const gracePeriod = parseInt(document.getElementById('loan-grace-period').value) || 0;
-                    const iof = parseCurrency(document.getElementById('loan-iof').value) || 0;
-                    const tac = parseCurrency(document.getElementById('loan-tac').value) || 0;
-                    const cet = parseCurrency(document.getElementById('loan-cet').value) || 0;
-                    const nominalInterest = parseCurrency(document.getElementById('loan-nominal-interest').value) || 0;
-                    const otherCharges = parseCurrency(document.getElementById('loan-other-charges').value) || 0;
-
-                    const { data: loanData, error: loanError } = await _supabase
+                    const loanDetails = { 
+                        description, total_amount: totalAmount, installments, start_date: startDate, status: 'Ativo',
+                        prazo_pagamento_meses: installments, carencia_meses: gracePeriod, valor_iof_rs: iof,
+                        valor_tac_rs: tac, cet_am: cet, juros_nominais_am: nominalInterest, outros_encargos_am: otherCharges,
+                        company_id: this.state.currentCompanyId
+                    };
+                    await this.logAction('Create Loan', loanDetails);
+                    const { data: loanData, error: loanError } = await this.supabase
                         .from('loans')
-                        .insert([{ 
-                            description, total_amount: totalAmount, installments, start_date: startDate, status: 'Ativo',
-                            prazo_pagamento_meses: installments, carencia_meses: gracePeriod, valor_iof_rs: iof,
-                            valor_tac_rs: tac, cet_am: cet, juros_nominais_am: nominalInterest, outros_encargos_am: otherCharges,
-                            company_id: currentCompanyId
-                        }])
+                        .insert([loanDetails])
                         .select()
                         .single();
 
                     if (loanError) {
                         console.error('Erro ao criar empréstimo:', loanError);
-                        hideLoader();
+                        this.hideLoader();
                         return;
                     }
 
@@ -1460,32 +1959,129 @@
                             priority: 'Alta',
                             loan_id: loanData.id,
                             tag: tag,
-                            company_id: currentCompanyId,
-                            authorization_status: 'Autorizado' // Loan installments are pre-authorized
+                            company_id: this.state.currentCompanyId,
+                            authorization_status: 'Autorizado'
                         });
                         currentDueDate.setMonth(currentDueDate.getMonth() + 1);
                     }
 
-                    const { error: paymentsError } = await _supabase.from('payments').insert(paymentsToInsert);
+                    const { error: paymentsError } = await this.supabase.from('payments').insert(paymentsToInsert);
                     if(paymentsError) console.error('Erro ao criar parcelas:', paymentsError);
 
-                    closeModal('loan');
-                    applyFilters();
+                    this.closeModal('loan');
+                    this.applyFilters();
                 });
 
-                [yearFilter, monthFilter, searchInput, priorityFilter, paymentMethodFilter, tagFilter].forEach(el => {
-                    el.addEventListener('change', applyFilters);
-                    if (el.tagName === 'INPUT') el.addEventListener('keyup', applyFilters);
+                this.ui.addCompanyForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const newCompanyName = this.ui.newCompanyName.value.trim();
+                    if (newCompanyName) {
+                        this.showLoader();
+                        await this.logAction('Create Company', { companyName: newCompanyName });
+                        const { error } = await this.supabase.from('companies').insert([{ name: newCompanyName }]);
+                        if (error) {
+                            console.error('Erro ao criar empresa:', error);
+                            alert('Falha ao criar empresa.');
+                        } else {
+                            this.ui.addCompanyForm.reset();
+                            await this.populateCompanySelector();
+                            this.renderAdminPanel();
+                        }
+                        this.hideLoader();
+                    }
                 });
-                exportPdfBtn.addEventListener('click', exportToPDF);
+
+                this.ui.addUserForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const username = this.ui.newUserUsername.value.trim();
+                    const password = this.ui.newUserPassword.value;
+
+                    if (username && password) {
+                        this.showLoader();
+                        await this.logAction('Create User', { newUsername: username });
+                        const { error } = await this.supabase.from('static_users').insert({ 
+                            username, 
+                            password, 
+                            companies: [], 
+                            permissions: [] 
+                        });
+
+                        if (error) {
+                             console.error('Erro ao criar utilizador:', error);
+                            alert('Falha ao criar utilizador. O nome de utilizador já pode existir.');
+                        } else {
+                            this.ui.addUserForm.reset();
+                            await this.loadStaticUsers();
+                            this.renderAdminPanel();
+                        }
+                        this.hideLoader();
+                    }
+                });
+
+                this.ui.userPermissionsForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    this.showLoader();
+                    const username = this.ui.permissionUsername.value;
+                    const selectedCompanies = Array.from(this.ui.permissionsCompanyList.querySelectorAll('input:checked')).map(cb => parseInt(cb.value));
+                    const selectedPermissions = Array.from(this.ui.permissionsActionList.querySelectorAll('input:checked')).map(cb => cb.value);
+
+                    await this.logAction('Update Permissions', { targetUser: username, companies: selectedCompanies, permissions: selectedPermissions });
+                    const { error } = await this.supabase.from('static_users')
+                        .update({ companies: selectedCompanies, permissions: selectedPermissions })
+                        .eq('username', username);
+
+                    if (error) {
+                        console.error('Erro ao salvar permissões:', error);
+                        alert('Falha ao salvar permissões.');
+                    } else {
+                        await this.loadStaticUsers();
+                        this.ui.userPermissionsModal.style.display = 'none';
+                    }
+                    this.hideLoader();
+                });
+
+                this.ui.cancelPermissionsBtn.addEventListener('click', () => {
+                    this.ui.userPermissionsModal.style.display = 'none';
+                });
+
+                this.ui.cancelWhatsappNotificationsBtn.addEventListener('click', () => {
+                    this.ui.whatsappNotificationsModal.style.display = 'none';
+                });
+
+                this.ui.whatsappNotificationsForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    this.showLoader();
+                    const username = this.ui.whatsappUsername.value;
+                    const whatsappNumber = this.ui.whatsappNumber.value.trim();
+                    const notificationPrefs = [];
+                    if (this.ui.whatsappNotifyUpcoming.checked) notificationPrefs.push('upcoming');
+                    if (this.ui.whatsappNotifyOverdue.checked) notificationPrefs.push('overdue');
+                    
+                    await this.logAction('Update WhatsApp Notifications', { targetUser: username, number: whatsappNumber, preferences: notificationPrefs });
+                    const { error } = await this.supabase.from('static_users')
+                        .update({ 
+                            whatsapp_number: whatsappNumber,
+                            whatsapp_notifications: notificationPrefs
+                        })
+                        .eq('username', username);
+
+                    if (error) {
+                        console.error('Erro ao salvar configurações do WhatsApp:', error);
+                        alert('Falha ao salvar configurações.');
+                    } else {
+                        await this.loadStaticUsers();
+                        this.ui.whatsappNotificationsModal.style.display = 'none';
+                    }
+                    this.hideLoader();
+                });
+
+                this.ui.viewLogBtn.addEventListener('click', () => this.viewAuditLog());
+                this.ui.closeAuditLogBtn.addEventListener('click', () => this.ui.auditLogModal.style.display = 'none');
+                this.ui.auditLogModal.addEventListener('click', (e) => { if(e.target === this.ui.auditLogModal) this.ui.auditLogModal.style.display = 'none' });
                 
-                // --- INICIALIZAÇÃO DA APLICAÇÃO ---
-                await populateYearFilter();
-                await fetchTags();
-                applyFilters();
-                hideLoader();
+                this.ui.generateBackupBtn.addEventListener('click', () => this.generateBackup());
             }
-        });
+        }
     </script>
 </body>
 </html>
