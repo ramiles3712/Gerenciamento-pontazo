@@ -38,12 +38,10 @@
         .filter-select, .search-input { background-color: #1e293b; border: 1px solid #334155; color: #e2e8f0; border-radius: 0.5rem; padding: 0.5rem 1rem; }
         .notification-bell { position: relative; cursor: pointer; }
         .notification-badge { position: absolute; top: -5px; right: -8px; background-color: #ef4444; color: white; border-radius: 50%; width: 20px; height: 20px; font-size: 12px; display: flex; align-items: center; justify-content: center; }
-        /* CORREÇÃO: Removido 'display: none' para permitir que a classe 'hidden' do Tailwind controle a visibilidade */
         .notification-dropdown { position: absolute; top: 100%; right: 0; background-color: #1e293b; border: 1px solid #334155; border-radius: 0.5rem; width: 300px; max-height: 400px; overflow-y: auto; z-index: 50; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); }
         .loading-overlay { display: none; position: fixed; inset: 0; background-color: rgba(15, 23, 42, 0.8); z-index: 100; justify-content: center; align-items: center; backdrop-filter: blur(4px); }
         .loader { border: 5px solid #334155; border-top: 5px solid #22d3ee; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        /* Authorization Statuses */
         .status-autorizado { background-color: rgba(34, 197, 94, 0.1); color: #22c55e; }
         .status-nao-autorizado { background-color: rgba(239, 68, 68, 0.1); color: #ef4444; }
         .status-autorizacao-pendente { background-color: rgba(245, 158, 11, 0.1); color: #f59e0b; }
@@ -93,7 +91,6 @@
                     <div id="notification-bell" class="notification-bell text-2xl text-slate-400 hover:text-white">
                         <i class="fas fa-bell"></i>
                         <span id="notification-badge" class="notification-badge hidden">0</span>
-                        <!-- CORREÇÃO: Adicionada a classe 'hidden' para que o JS possa controlar a visibilidade -->
                         <div id="notification-dropdown" class="notification-dropdown text-sm hidden"></div>
                     </div>
                     <button id="logout-btn" class="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2">
@@ -692,6 +689,7 @@
 
             async initializeMainApp() {
                 this.showLoader();
+                this.populateYearFilter(); // CORREÇÃO: Adicionada chamada para popular o filtro de ano
                 await this.populateCompanySelector();
                 await this.fetchTags();
                 this.applyFilters();
@@ -705,7 +703,7 @@
             formatDate(dateString, includeTime = false) {
                 if (!dateString) return 'N/A';
                 const date = new Date(dateString);
-                const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
+                const options = { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'UTC' }; // Adicionado timeZone para consistência
                 if (includeTime) {
                     options.hour = '2-digit';
                     options.minute = '2-digit';
@@ -779,6 +777,19 @@
                     this.state.currentCompanyId = null;
                 }
             }
+            
+            // CORREÇÃO: Nova função para popular o seletor de ano
+            populateYearFilter() {
+                const currentYear = new Date().getFullYear();
+                this.ui.yearFilter.innerHTML = '<option value="all">Todos</option>'; // Limpa opções existentes
+                for (let i = currentYear + 1; i >= currentYear - 5; i--) {
+                    const option = document.createElement('option');
+                    option.value = i;
+                    option.textContent = i;
+                    this.ui.yearFilter.appendChild(option);
+                }
+            }
+
 
             async fetchPaginatedPayments() {
                 if (!this.state.currentCompanyId) {
@@ -803,15 +814,16 @@
                 if (this.state.selectedPaymentMethod !== 'all') query = query.eq('paymentMethod', this.state.selectedPaymentMethod);
                 if (this.state.selectedTag !== 'all') query = query.eq('tag', this.state.selectedTag);
                 
+                // CORREÇÃO: Lógica de filtro de data ajustada para usar 'dueDate'
                 if (this.state.selectedYear !== 'all') {
-                    const startDate = `${this.state.selectedYear}-01-01`;
-                    const endDate = `${this.state.selectedYear}-12-31`;
                     if (this.state.selectedMonth !== 'all') {
                         const monthStartDate = new Date(this.state.selectedYear, this.state.selectedMonth, 1).toISOString().slice(0,10);
                         const monthEndDate = new Date(this.state.selectedYear, parseInt(this.state.selectedMonth) + 1, 0).toISOString().slice(0,10);
-                        query = query.gte('date', monthStartDate).lte('date', monthEndDate);
+                        query = query.gte('dueDate', monthStartDate).lte('dueDate', monthEndDate);
                     } else {
-                        query = query.gte('date', startDate).lte('date', endDate);
+                        const startDate = `${this.state.selectedYear}-01-01`;
+                        const endDate = `${this.state.selectedYear}-12-31`;
+                        query = query.gte('dueDate', startDate).lte('dueDate', endDate);
                     }
                 }
 
@@ -836,15 +848,17 @@
                 if (!this.state.currentCompanyId) return [];
                 this.showLoader();
                 let query = this.supabase.from('payments').select('*').eq('company_id', this.state.currentCompanyId);
+                
+                // CORREÇÃO: Lógica de filtro de data ajustada para usar 'dueDate'
                 if (this.state.selectedYear !== 'all') {
-                    const startDate = `${this.state.selectedYear}-01-01`;
-                    const endDate = `${this.state.selectedYear}-12-31`;
                     if (this.state.selectedMonth !== 'all') {
                         const monthStartDate = new Date(this.state.selectedYear, this.state.selectedMonth, 1).toISOString().slice(0,10);
                         const monthEndDate = new Date(this.state.selectedYear, parseInt(this.state.selectedMonth) + 1, 0).toISOString().slice(0,10);
-                        query = query.gte('date', monthStartDate).lte('date', monthEndDate);
+                        query = query.gte('dueDate', monthStartDate).lte('dueDate', monthEndDate);
                     } else {
-                        query = query.gte('date', startDate).lte('date', endDate);
+                        const startDate = `${this.state.selectedYear}-01-01`;
+                        const endDate = `${this.state.selectedYear}-12-31`;
+                        query = query.gte('dueDate', startDate).lte('dueDate', endDate);
                     }
                 }
                 const { data, error } = await query;
@@ -1123,7 +1137,7 @@
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
                 payments.forEach(p => {
-                    const isOverdue = p.status === 'Pendente' && new Date(p.dueDate + 'T00:00:00') < today;
+                    const isOverdue = p.status === 'Pendente' && new Date(p.dueDate) < today;
                     const row = document.createElement('tr');
                     row.className = 'hover:bg-slate-700/50 transition-colors';
                     const tagHtml = p.tag ? `<span class="tag-badge" style="background-color: ${this.stringToColor(p.tag)}20; color: ${this.stringToColor(p.tag)};">${p.tag}</span>` : '';
@@ -1502,15 +1516,16 @@
                 if (this.state.selectedPaymentMethod !== 'all') query = query.eq('paymentMethod', this.state.selectedPaymentMethod);
                 if (this.state.selectedTag !== 'all') query = query.eq('tag', this.state.selectedTag);
                 
+                // CORREÇÃO: Lógica de filtro de data ajustada para usar 'dueDate'
                 if (this.state.selectedYear !== 'all') {
-                    const startDate = `${this.state.selectedYear}-01-01`;
-                    const endDate = `${this.state.selectedYear}-12-31`;
                     if (this.state.selectedMonth !== 'all') {
                         const monthStartDate = new Date(this.state.selectedYear, this.state.selectedMonth, 1).toISOString().slice(0,10);
                         const monthEndDate = new Date(this.state.selectedYear, parseInt(this.state.selectedMonth) + 1, 0).toISOString().slice(0,10);
-                        query = query.gte('date', monthStartDate).lte('date', monthEndDate);
+                        query = query.gte('dueDate', monthStartDate).lte('dueDate', monthEndDate);
                     } else {
-                        query = query.gte('date', startDate).lte('date', endDate);
+                        const startDate = `${this.state.selectedYear}-01-01`;
+                        const endDate = `${this.state.selectedYear}-12-31`;
+                        query = query.gte('dueDate', startDate).lte('dueDate', endDate);
                     }
                 }
                 
@@ -1574,7 +1589,6 @@
                 }
             }
             
-            // NOVO: Função para exportar para PDF
             async exportToPDF() {
                 await this.logAction('Export to PDF');
                 const { jsPDF } = window.jspdf;
