@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Controle de Pagamentos - PONTAZO BANK</title>
+    <title>Controle de Pagamentos - FINANCEIRO NP+</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Bibliotecas para PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -54,7 +54,7 @@
     <div id="login-screen" class="fixed inset-0 bg-slate-900 flex items-center justify-center z-50">
         <div class="w-full max-w-md bg-slate-800 p-8 rounded-2xl shadow-2xl border border-slate-700">
             <div class="text-center mb-8">
-                <h1 class="text-4xl font-bold text-white">PONTAZO <span class="text-cyan-400">BANK</span></h1>
+                <h1 class="text-4xl font-bold text-white">FINANCEIRO <span class="text-cyan-400">NP+</span></h1>
                 <p class="text-slate-400 mt-2">Acesso ao Sistema Financeiro</p>
             </div>
             <form id="login-form">
@@ -84,7 +84,7 @@
                     </select>
                 </div>
                 <div class="w-1/3 text-center">
-                    <h1 class="text-4xl md:text-5xl font-bold text-white">PONTAZO <span class="text-cyan-400">BANK</span></h1>
+                    <h1 class="text-4xl md:text-5xl font-bold text-white">FINANCEIRO <span class="text-cyan-400">NP+</span></h1>
                     <p class="text-lg text-slate-400 mt-2">Seu controle financeiro, simplificado.</p>
                 </div>
                 <div class="w-1/3 flex justify-end items-center gap-6">
@@ -109,7 +109,8 @@
                     <button class="tab-btn" data-module="DESPESAS ADM MENSAIS">Despesas ADM</button>
                     <button class="tab-btn" data-module="FOLHA DE PAGAMENTO">Folha de Pagamento</button>
                     <button class="tab-btn" data-module="IMPOSTOS">Impostos</button>
-                    <button class="tab-btn" data-module="CONTAS AVULSAS">Contas Avulsas</button>
+                    <button class="tab-btn" data-module="OUTROS">Outros</button>
+                    <button class="tab-btn" data-module="PARCELAMENTOS">Parcelamentos</button>
                     <button id="admin-tab-btn" class="tab-btn hidden" data-module="ADMIN">Admin</button>
                 </nav>
             </div>
@@ -347,7 +348,7 @@
                         <div>
                             <label for="module" class="block text-sm font-medium text-slate-300 mb-2">Módulo</label>
                             <select id="module" name="module" class="w-full bg-slate-700 border border-slate-600 text-white rounded-lg p-3 focus:ring-2 focus:ring-cyan-500 focus:outline-none" required>
-                                <option value="DESPESAS ADM MENSAIS">Despesas ADM Mensais</option> <option value="FOLHA DE PAGAMENTO">Folha de Pagamento</option> <option value="IMPOSTOS">Impostos</option> <option value="CONTAS AVULSAS">Contas Avulsas</option>
+                                <option value="DESPESAS ADM MENSAIS">Despesas ADM Mensais</option> <option value="FOLHA DE PAGAMENTO">Folha de Pagamento</option> <option value="IMPOSTOS">Impostos</option> <option value="OUTROS">Outros</option>
                             </select>
                         </div>
                         <div>
@@ -642,7 +643,7 @@
             getInitialState() {
                 return {
                     currentModule: 'DASHBOARD', allPayments: [], allTags: [],
-                    moduleNames: ["DESPESAS ADM MENSAIS", "FOLHA DE PAGAMENTO", "IMPOSTOS", "CONTAS AVULSAS", "EMPRESTIMOS"],
+                    moduleNames: ["DESPESAS ADM MENSAIS", "FOLHA DE PAGAMENTO", "IMPOSTOS", "OUTROS", "EMPRESTIMOS"],
                     modulesChartInstance: null, statusChartInstance: null, tagsChartInstance: null,
                     selectedYear: 'all', selectedMonth: 'all', searchTerm: '', selectedPriority: 'all', selectedPaymentMethod: 'all', selectedTag: 'all',
                     actionToConfirm: null, currentPage: 1, itemsPerPage: 50, totalItems: 0,
@@ -689,7 +690,7 @@
 
             async initializeMainApp() {
                 this.showLoader();
-                this.populateYearFilter(); // CORREÇÃO: Adicionada chamada para popular o filtro de ano
+                this.populateYearFilter();
                 await this.populateCompanySelector();
                 await this.fetchTags();
                 this.applyFilters();
@@ -703,7 +704,7 @@
             formatDate(dateString, includeTime = false) {
                 if (!dateString) return 'N/A';
                 const date = new Date(dateString);
-                const options = { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'UTC' }; // Adicionado timeZone para consistência
+                const options = { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'UTC' };
                 if (includeTime) {
                     options.hour = '2-digit';
                     options.minute = '2-digit';
@@ -778,10 +779,9 @@
                 }
             }
             
-            // CORREÇÃO: Nova função para popular o seletor de ano
             populateYearFilter() {
                 const currentYear = new Date().getFullYear();
-                this.ui.yearFilter.innerHTML = '<option value="all">Todos</option>'; // Limpa opções existentes
+                this.ui.yearFilter.innerHTML = '<option value="all">Todos</option>';
                 for (let i = currentYear + 1; i >= currentYear - 5; i--) {
                     const option = document.createElement('option');
                     option.value = i;
@@ -805,6 +805,8 @@
                     query = query.eq('status', 'Pago');
                 } else if (this.state.currentModule === 'CONTAS A PAGAR') {
                     query = query.eq('status', 'Pendente');
+                } else if (this.state.currentModule === 'PARCELAMENTOS') {
+                    query = query.or('description.ilike.%Parcela%,loan_id.not.is.null');
                 } else if (this.state.currentModule !== 'DASHBOARD' && this.state.currentModule !== 'EMPRESTIMOS' && this.state.currentModule !== 'ADMIN') {
                     query = query.eq('module', this.state.currentModule);
                 }
@@ -814,7 +816,6 @@
                 if (this.state.selectedPaymentMethod !== 'all') query = query.eq('paymentMethod', this.state.selectedPaymentMethod);
                 if (this.state.selectedTag !== 'all') query = query.eq('tag', this.state.selectedTag);
                 
-                // CORREÇÃO: Lógica de filtro de data ajustada para usar 'dueDate'
                 if (this.state.selectedYear !== 'all') {
                     if (this.state.selectedMonth !== 'all') {
                         const monthStartDate = new Date(this.state.selectedYear, this.state.selectedMonth, 1).toISOString().slice(0,10);
@@ -849,7 +850,6 @@
                 this.showLoader();
                 let query = this.supabase.from('payments').select('*').eq('company_id', this.state.currentCompanyId);
                 
-                // CORREÇÃO: Lógica de filtro de data ajustada para usar 'dueDate'
                 if (this.state.selectedYear !== 'all') {
                     if (this.state.selectedMonth !== 'all') {
                         const monthStartDate = new Date(this.state.selectedYear, this.state.selectedMonth, 1).toISOString().slice(0,10);
@@ -1507,6 +1507,8 @@
                     query = query.eq('status', 'Pago');
                 } else if (this.state.currentModule === 'CONTAS A PAGAR') {
                     query = query.eq('status', 'Pendente');
+                } else if (this.state.currentModule === 'PARCELAMENTOS') {
+                    query = query.or('description.ilike.%Parcela%,loan_id.not.is.null');
                 } else if (this.state.currentModule !== 'DASHBOARD' && this.state.currentModule !== 'EMPRESTIMOS' && this.state.currentModule !== 'ADMIN') {
                     query = query.eq('module', this.state.currentModule);
                 }
@@ -1516,7 +1518,6 @@
                 if (this.state.selectedPaymentMethod !== 'all') query = query.eq('paymentMethod', this.state.selectedPaymentMethod);
                 if (this.state.selectedTag !== 'all') query = query.eq('tag', this.state.selectedTag);
                 
-                // CORREÇÃO: Lógica de filtro de data ajustada para usar 'dueDate'
                 if (this.state.selectedYear !== 'all') {
                     if (this.state.selectedMonth !== 'all') {
                         const monthStartDate = new Date(this.state.selectedYear, this.state.selectedMonth, 1).toISOString().slice(0,10);
@@ -1791,7 +1792,7 @@
                 this.ui.addPaymentBtn.addEventListener('click', () => {
                     this.ui.modalTitle.textContent = 'Adicionar Novo Pagamento';
                     const formModuleSelect = this.ui.paymentForm.module;
-                    if (this.state.currentModule !== 'DASHBOARD' && this.state.currentModule !== 'CONTAS A PAGAR' && this.state.currentModule !== 'EMPRESTIMOS' && this.state.currentModule !== 'PAGO' && this.state.currentModule !== 'ADMIN') {
+                    if (this.state.currentModule !== 'DASHBOARD' && this.state.currentModule !== 'CONTAS A PAGAR' && this.state.currentModule !== 'EMPRESTIMOS' && this.state.currentModule !== 'PAGO' && this.state.currentModule !== 'ADMIN' && this.state.currentModule !== 'PARCELAMENTOS') {
                         formModuleSelect.value = this.state.currentModule;
                     } else {
                         formModuleSelect.value = this.state.moduleNames[0];
